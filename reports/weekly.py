@@ -50,8 +50,8 @@ def weekly_tables(
         list_tables=[center_write_off, tn_write_off, future_input_write_off]
     )
 
-    name_ask = r'.\support_data\output_tables\ask_{0}.csv'.format(NOW.strftime('%Y%m%d'))
-    output_req.to_csv(name_ask, sep=";", encoding='ansi', index=False)
+    name_output_req = r'.\support_data\output_tables\ask_{0}.csv'.format(NOW.strftime('%Y%m%d'))
+    output_req.to_csv(name_output_req, sep=";", encoding='ansi', index=False)
 
     # создание файлов для макроса экселя
     detail_table = output_req[[
@@ -188,12 +188,12 @@ def graph(table_: DataFrame, method: str) -> None:
     if method == 'with_future_inputs':
         need_table = table_.copy()
         name_combin_graph = r'.\support_data\output_tables\graf_{0}.csv'.format(NOW.strftime('%Y%m%d'))
-        name_name_combin_graph_excel = r".\support_data\data_for_reports\graf.csv"
+        name_combin_graph_excel = r".\support_data\data_for_reports\graf.csv"
     elif method == 'without_future_inputs':
         need_table = table_.copy()
         need_table['Остаток дефицита'] = need_table['Остаток дефицита'] + need_table['Списание из Поступлений']
         name_combin_graph = r'.\support_data\output_tables\graf_without_feat_{0}.csv'.format(NOW.strftime('%Y%m%d'))
-        name_name_combin_graph_excel = r".\support_data\data_for_reports\graf_without_feat.csv"
+        name_combin_graph_excel = r".\support_data\data_for_reports\graf_without_feat.csv"
     else:
         raise AttributeError(
             'Argument "method" receives only 2 values: with_future_inputs or without_future_inputs'
@@ -230,4 +230,4 @@ def graph(table_: DataFrame, method: str) -> None:
     filter1 = combin_graph.sum(axis=1).replace({0: None}).notna()
     
     combin_graph[filter1].to_csv(name_combin_graph, sep=";", encoding='ansi')
-    combin_graph[filter1].to_csv(name_name_combin_graph_excel, sep=";", encoding='ansi')
+    combin_graph[filter1].to_csv(name_combin_graph_excel, sep=";", encoding='ansi')

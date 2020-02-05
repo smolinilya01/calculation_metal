@@ -2,6 +2,8 @@
 
 from pandas import DataFrame
 from reports.weekly import weekly_tables
+from reports.daily import daily_tables
+from reports.excel import create_excel_reports
 
 
 def all_reports(
@@ -20,3 +22,6 @@ def all_reports(
         end_ask_=end_ask_,
         oper_=oper_
     )
+
+    daily_tables()
+    create_excel_reports()
