@@ -122,3 +122,17 @@ def check_calculation_right(
         'Потребность / ' + str(int(start_ask_['Дефицит'].sum())) +
         ' / ' + str(int(end_ask_['Дефицит'].sum()))
     )
+
+
+def extract_product_name(product_: str) -> str:
+    """Извлекает наименование продукта заказа из стрингового значения
+
+    :param product_: название продукта из ERP формата 'Номер заказа//Наименование продукта'
+    """
+    sep = '//'
+
+    if sep in product_:
+        name = product_.split(sep)[1]
+        return name
+    else:
+        return product_
