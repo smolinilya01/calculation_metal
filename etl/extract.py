@@ -3,7 +3,7 @@
 import logging
 
 from common.common import (
-    modify_col, replace_minus
+    modify_col, replace_minus, extract_product_name
 )
 from pandas import (
     DataFrame, read_csv, read_excel, merge
@@ -41,6 +41,7 @@ def requirements() -> DataFrame:
         (data['Пометка удаления'] == 0),
         0
     )
+    data['Изделие'] = modify_col(data['Изделие'], instr=1).map(extract_product_name)
     del data['Обеспечена метизы']  # del data['Обеспечена метизы'], data['Заказчик'], data['Спецификация']
 
     tn_ord = tn_orders()

@@ -27,7 +27,7 @@ def deficit(table_: DataFrame) -> None:
     need_columns = [
         'Номер победы', 'Партия', 'Дата запуска',
         'Номенклатура', 'Количество в заказе',
-        'Заказчик', 'Спецификация', 'Остаток дефицита'
+        'Заказчик', 'Изделие', 'Остаток дефицита'
     ]
     table: DataFrame = table_.copy()
     table['Остаток дефицита'] = table['Остаток дефицита'] + table['Списание из Поступлений']
@@ -61,7 +61,7 @@ def main_deficit_table(table: DataFrame) -> DataFrame:
     """
     group_columns = [
         'Номер победы', 'Партия', 'Дата запуска',
-        'Заказчик', 'Спецификация'
+        'Заказчик', 'Изделие'
     ]
     detail_table = table.groupby(by=group_columns).sum().reset_index()
     detail_table['Обеспеченность'] = 1 - (detail_table['Остаток дефицита'] / detail_table['Количество в заказе'])
@@ -94,7 +94,7 @@ def main_deficit_table(table: DataFrame) -> DataFrame:
     first_table = DataFrame(data=first_table, columns=detail_table.columns)
     first_table = first_table[[
         'Дата запуска', 'Дата запуска ФАКТ', 'Заказчик',
-        'Спецификация', 'Номер победы', 'Партия',
+        'Изделие', 'Номер победы', 'Партия',
         'Остаточная потребность', 'Обеспеченность'
     ]]
     first_table = first_table.rename(columns={
