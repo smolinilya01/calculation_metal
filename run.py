@@ -10,6 +10,7 @@ from etl.extract import (
 from common.common import (
     check_missing_nomenclature, check_calculation_right
 )
+from reports.main import all_reports
 
 
 def main() -> None:
@@ -55,6 +56,12 @@ def main() -> None:
         end_tn_=end_rest_tn,
         start_fut_=start_fut,
         end_fut_=end_fut,
+    )
+
+    all_reports(
+        start_ask_=start_ask,
+        end_ask_=end_ask,
+        oper_=operations
     )
 
 
