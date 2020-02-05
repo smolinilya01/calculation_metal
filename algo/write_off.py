@@ -158,11 +158,11 @@ def replacement(
                             table.loc[ind] = row_ask
 
                             row_for_oper = (
-                                table['Дата запуска'],
-                                table['Поряд_номер'],
-                                table['Заказ-Партия'],
+                                row_ask['Дата запуска'],
+                                row_ask['Поряд_номер'],
+                                row_ask['Заказ-Партия'],
                                 cur_nom,
-                                table['Дефицит'],
+                                row_ask['Дефицит'],
                                 ask_start,
                                 ask_start - rest_nom_start,
                                 rest_nom_start,
@@ -180,11 +180,11 @@ def replacement(
                             row_ask['Дефицит'] = 0
                             table.loc[ind] = row_ask
                             row_for_oper = (
-                                table['Дата запуска'],
-                                table['Поряд_номер'],
-                                table['Заказ-Партия'],
+                                row_ask['Дата запуска'],
+                                row_ask['Поряд_номер'],
+                                row_ask['Заказ-Партия'],
                                 cur_nom,
-                                table['Дефицит'],
+                                row_ask['Дефицит'],
                                 ask_start,
                                 0,
                                 ask_start,
