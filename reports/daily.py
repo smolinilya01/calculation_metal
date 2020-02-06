@@ -67,7 +67,7 @@ def main_deficit_table(table: DataFrame) -> DataFrame:
     detail_table['Обеспеченность'] = 1 - (detail_table['Остаток дефицита'] / detail_table['Количество в заказе'])
     detail_table['Остаточная потребность'] = None
     detail_table['Дата запуска ФАКТ'] = None  # потом заменится на существующую колонку
-    detail_table = detail_table[detail_table['Остаток дефицита'] > 0.5]
+    detail_table = detail_table[detail_table['Остаток дефицита'] > 0.001]
     detail_table = detail_table.sort_values(by=['Дата запуска'])
 
     first_table = list()
