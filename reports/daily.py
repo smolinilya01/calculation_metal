@@ -45,6 +45,14 @@ def deficit(table_: DataFrame) -> None:
         index=False
     )
 
+    provided = provided_table(table)
+    provided.to_csv(
+        r'.\support_data\data_for_reports\provided.csv',
+        sep=";",
+        encoding='ansi',
+        index=False
+    )
+
     second_table = second_deficit_table(first_table)
     second_table.to_csv(
         r'.\support_data\data_for_reports\daily_deficit_2.csv',
@@ -63,11 +71,12 @@ def main_deficit_table(table: DataFrame) -> DataFrame:
         'Номер победы', 'Партия', 'Дата запуска',
         'Заказчик', 'Изделие'
     ]
-    detail_table = table.groupby(by=group_columns).sum().reset_index()
+    detail_table = table.copy()
+    detail_table = detail_table.groupby(by=group_columns).sum().reset_index()
     detail_table['Обеспеченность'] = 1 - (detail_table['Остаток дефицита'] / detail_table['Количество в заказе'])
     detail_table['Остаточная потребность'] = None
     detail_table['Дата запуска ФАКТ'] = None  # потом заменится на существующую колонку
-    detail_table = detail_table[detail_table['Остаток дефицита'] > 0.001]
+    detail_table = detail_table[detail_table['Остаток дефицита'] >= 0.0001]
     detail_table = detail_table.sort_values(by=['Дата запуска'])
 
     first_table = list()
@@ -136,3 +145,35 @@ def second_deficit_table(table: DataFrame) -> DataFrame:
     second_table.columns = ['Номенклатура металла', 'Потребность']
     second_table['Комментарий МТО'] = None
     return second_table
+
+
+def provided_table(table: DataFrame) -> DataFrame:
+    """Создание таблицы с полностью обеспеченными заказами из склада
+
+    :param table: таблица с подготовленными данными output_req из deficit()
+    """
+    group_columns = [
+        'Номер победы', 'Партия', 'Дата запуска',
+        'Заказчик', 'Изделие'
+    ]
+    prov_table = table.copy()
+    prov_table = prov_table.groupby(by=group_columns).sum().reset_index()
+    prov_table['Обеспеченность'] = 1 - (prov_table['Остаток дефицита'] / prov_table['Количество в заказе'])
+    prov_table['Дата запуска ФАКТ'] = None  # потом заменится на существующую колонку
+    prov_table = prov_table[prov_table['Остаток дефицита'] < 0.0001]
+    prov_table = prov_table.sort_values(by=['Дата запуска'])
+
+    # работа с колонками
+    prov_table = prov_table[[
+        'Дата запуска', 'Дата запуска ФАКТ',
+        'Заказчик', 'Изделие', 'Номер победы',
+        'Партия', 'Обеспеченность'
+    ]]
+    prov_table = prov_table.rename(columns={
+        'Дата запуска': 'Дата запуска ПЛАН',
+        'Заказчик': 'Заказчик/Сортамент',
+        'Номер победы': '№ заказа'
+    })
+    prov_table['Обеспеченность'] = prov_table['Обеспеченность'].replace({None: 1})  # заказы с 0 потребностью, но с перемещениями
+    return prov_table
+
