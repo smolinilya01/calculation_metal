@@ -1,12 +1,11 @@
 """Common functions"""
 
 import re
-import sys
 import logging
 
 from typing import Union
 from datetime import datetime
-from pandas import (DataFrame, Series, concat)
+from pandas import (DataFrame, Series)
 
 
 def modify_col(col: Series, instr=0, space=0, comma=0, numeric=0) -> Series:
@@ -50,38 +49,6 @@ def replace_minus(x: Union[float, int]) -> Union[float, int]:
         return 0
     else:
         return x
-
-
-def check_missing_nomenclature(
-    rest_center_: DataFrame,
-    future_inputs_: DataFrame,
-    ask: DataFrame,
-    rest_tn: DataFrame,
-    nom_: DataFrame,
-) -> None:
-    """Проверка наличия всех номенклатур в справочнике сортаментов и марок
-
-    :param rest_center_: таблица остатков центрального склада
-    :param future_inputs_: таблица поступлений
-    :param ask: таблица изначальных потребностей
-    :param rest_tn: таблица остатков склада ТН
-    :param nom_: таблица справочника номенклатуры
-    """
-    all_nom = concat([
-        rest_center_['Номенклатура'],
-        future_inputs_['Номенклатура'],
-        rest_tn['Номенклатура'],
-        ask['Номенклатура']
-    ]).drop_duplicates()
-    out_nom = all_nom[~all_nom.isin(nom_['Номенклатура'])]
-
-    if len(out_nom) > 0:
-        print('Необходимо добавить следующие номенклатуры в справочник:')
-
-        for i in list(out_nom):
-            print(i)
-        # input()
-        sys.exit()  # если есть номенклатуры, которые нужно добавить в справочник
 
 
 def check_calculation_right(
