@@ -2,16 +2,26 @@
 
 import win32com.client
 
+from etl.extract import NOW
 from os import path
+from shutil import copy
 
 
-def create_excel_reports() -> None:
+def weekly_excel_reports() -> None:
     """Формирование отчетов (ежедневных и еженедельных) в эксель файлах"""
     weekly_report_name = r".\support_data\reports\Итоговая_потребность.xlsm"
-    daily_report_name = r".\support_data\reports\Дефицит.xlsm"
-
     macro(weekly_report_name)
+
+
+def daily_excel_reports() -> None:
+    """Формирование отчетов (ежедневных и еженедельных) в эксель файлах"""
+    daily_report_name = r".\support_data\reports\Дефицит.xlsm"
     macro(daily_report_name)
+    destination = (
+        r'\\oemz-fs01.oemz.ru\Works$\1.1. Отчеты по производству\1.1.5 Отчет по дефициту заказов' +
+        f'\\{NOW.strftime("%Y%m%d")}_Дефицит.xlsm'
+    )
+    copy(daily_report_name, destination)
 
 
 def macro(path_: str) -> None:

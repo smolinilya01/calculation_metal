@@ -6,23 +6,25 @@ from common.common import (
     modify_col, replace_minus, extract_product_name
 )
 from pandas import (
-    DataFrame, read_csv, read_excel, merge
+    DataFrame, read_csv, merge, NaT
 )
 from datetime import datetime
+from numpy import nan
 
 NOW: datetime = datetime.now()
 
 
 def requirements() -> DataFrame:
     """Загузка таблицы с первичной потребностью (дефицитом), форматирование таблицы."""
-    path = r'support_data/outloads/ask.txt'
+    path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Расчет металл (ANSITXT).txt"
     data = read_csv(
-        path, 
+        path,
         sep='\t',
-        encoding='ansi', 
-        parse_dates=['Дата запуска'],
+        encoding='ansi',
+        parse_dates=['Дата запуска', 'Дата начала факт', 'Дата поступления КМД'],
         dayfirst=True
     )
+    data = data[~data['Номенклатура'].isna()]
     data = data.fillna(value=0)
     data = data.rename(columns={'Обеспечена МП': 'Заказ обеспечен'})
     data['Заказ обеспечен'] = data['Заказ обеспечен'].replace({'Нет': 0, 'Да': 1})
@@ -46,78 +48,76 @@ def requirements() -> DataFrame:
 
     tn_ord = tn_orders()
     data = merge(data, tn_ord, how='left', on='Заказ-Партия', copy=False)  # индикатор ТН в таблицу потребности
-    data = data.sort_values(by=['Дата запуска', 'Заказ-Партия'])  # сортировка потребности и определение
+    data = multiple_sort(data)  # сортировка потребности и определение
     data = data.reset_index().rename(columns={'index': 'Поряд_номер'})  # определение поряд номера
 
     logging.info('Потребность загрузилась')
     return data
 
 
-def nomenclature() -> DataFrame:
-    """Загузка таблицы с номенклатурой и ее полями для определения замен
-    , форматирование таблицы.
-    """
-    path = r'support_data/outloads/dict_nom.xlsx'
-    data = read_excel(path, sheet_name='1').drop_duplicates()
-    data = data.rename(columns={'Номенклатура': 'index'}).set_index('index', drop=False)  # помещение названия в индекс
-    # колонка названия номенклатуры остается и в таблице и в индексе для дальнейшей работы
-    data = data.rename(columns={'index': 'Номенклатура'})
-    data['Сортамет+Марка'] = data['Сортамент'] + '-' + data['Марка-категория']  # Создание столбца Сортам_маркак
-
-    logging.info('Номенклатура загрузилась')
-    return data
-
-
 def replacements() -> DataFrame:
     """Загузка таблицы с заменами, форматирование таблицы."""
-    path = r'support_data/outloads/dict_replacement.csv'
-    data = read_csv(path, sep=';', encoding='ansi')
+    path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Замены (ANSITXT).txt"
+    data = read_csv(
+        path,
+        sep='\t',
+        encoding='ansi',
+        parse_dates=['Период завершения'],
+        dayfirst=True
+    )
+    renames = {
+        'Материал.Код': 'Номенклатура.Код',
+        'Материал': 'Номенклатура',
+        'Коэффициент замены': 'Коэф_замены',
+        'Период завершения': 'Завершение',
+        'Аналог.Категория стали': 'Аналог.Кат_стали'
+    }
+    data = data.rename(columns=renames)
+    data = data.sort_values(by=['Номенклатура', 'Аналог.Кат_стали'])
 
     logging.info('Замены загрузились')
     return data
 
 
-def center_rests(nom_: DataFrame) -> DataFrame:
-    """Загузка таблицы с остатками на центральном складе, форматирование таблицы.
-
-    :param nom_: таблица из nomenclature() - справочник номенклатуры
-    """
-    path = r'support_data/outloads/rest_center.txt'
-    data = read_csv(path, sep='\t', encoding='ansi')
-    data = data.merge(nom_[['Номенклатура', 'Сортамет+Марка']], on='Номенклатура', how='left')
+def center_rests() -> DataFrame:
+    """Загузка таблицы с остатками на центральном складе, форматирование таблицы."""
+    path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\!metal_center+metiz (ANSITXT).txt"
+    data = read_csv(
+        path,
+        sep='\t',
+        encoding='ansi'
+    )
+    data = data.rename(columns={'Конечный остаток': "Количество", 'Артикул': 'Код'})
+    data = data[~data['Номенклатура'].isna()]
     data['Количество'] = modify_col(data['Количество'], instr=1, space=1, comma=1, numeric=1)
-    data['Склад'] = 'Центральный склад'
+    data = data[data['Количество'] > 0]
+    data['Склад'] = 'Центральный склад'  # Склады центральные по металлу, метизам и вход контроля
     data['Дата'] = datetime(NOW.year, NOW.month, NOW.day)
-    data = data.fillna(0)
-    data = data.sort_values(by='Дата')
 
     logging.info('Остатки центрального склада загрузились')
     return data
 
 
-def tn_rests(nom_: DataFrame) -> DataFrame:
-    """Загрузка таблицы с остатками на складе ТН, форматирование таблицы.
-
-    :param nom_: таблица из nomenclature() - справочник номенклатуры
-    """
-    path = r'support_data/outloads/rest_tn.txt'
-    data = read_csv(path, sep='\t', encoding='ansi')
-    data = data.merge(nom_[['Номенклатура', 'Сортамет+Марка']], on='Номенклатура', how='left')
+def tn_rests() -> DataFrame:
+    """Загрузка таблицы с остатками на складе ТН, форматирование таблицы."""
+    path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\!metal_tn (ANSITXT).txt"
+    data = read_csv(
+        path,
+        sep='\t',
+        encoding='ansi',
+    )
+    data = data.rename(columns={'Конечный остаток': "Количество", 'Артикул': 'Код'})
+    data = data[~data['Номенклатура'].isna()]
     data['Количество'] = modify_col(data['Количество'], instr=1, space=1, comma=1, numeric=1)
     data['Склад'] = 'ТН'
     data['Дата'] = datetime(NOW.year, NOW.month, NOW.day)
-    data = data.fillna(0)
-    data = data.sort_values(by='Дата')
 
     logging.info('Остатки склада ТН загрузились')
     return data
 
 
-def future_inputs(nom_: DataFrame) -> DataFrame:
-    """Загрузка таблицы с поступлениями, форматирование таблицы.
-
-    :param nom_: таблица из nomenclature() - справочник номенклатуры
-    """
+def future_inputs() -> DataFrame:
+    """Загрузка таблицы с поступлениями, форматирование таблицы."""
     path = r'support_data/outloads/rest_futures_inputs.csv'
     data = read_csv(
         path,
@@ -126,7 +126,6 @@ def future_inputs(nom_: DataFrame) -> DataFrame:
         parse_dates=['Дата'],
         dayfirst=True
     )
-    data = data.merge(nom_[['Номенклатура', 'Сортамет+Марка']], on='Номенклатура', how='left')
     data['Количество'] = modify_col(data['Количество'], instr=1, space=1, comma=1, numeric=1)
     data['Склад'] = 'Поступления'
     data = data.fillna(0)
@@ -142,4 +141,26 @@ def tn_orders() -> DataFrame:
     data = read_csv(path, sep='\t', encoding='ansi').drop_duplicates()
 
     logging.info('Заказы ТН загрузилась')
+    return data
+
+
+def multiple_sort(table: DataFrame) -> DataFrame:
+    """Многоступенчетая сортировка:
+    Ранг -> Дата запуска факт -> Дата поступления КМД -> Дата запуска
+
+    :param table: таблица из ask
+    """
+    data = table
+    if 0 in data['Дата начала факт'][data['Дата начала факт'] == 0].values:
+        data['Дата начала факт'] = data['Дата начала факт'].replace({0: NaT, 0.0: NaT})
+    if 0 in data['Дата поступления КМД'][data['Дата поступления КМД'] == 0].values:
+        data['Дата поступления КМД'] = data['Дата поступления КМД'].replace({0: NaT, 0.0: NaT})
+    data['Приоритет'] = data['Приоритет'].replace({0: nan, 0.0: nan})
+    sort_columns = [
+        'Приоритет', 'Дата начала факт',
+        'Дата поступления КМД', 'Дата запуска',
+        'Заказ-Партия'
+    ]
+    data = data.sort_values(by=sort_columns)
+
     return data
