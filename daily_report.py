@@ -20,13 +20,14 @@ def main() -> None:
     start_rest_center = center_rests()
     start_rest_tn = tn_rests()
     start_fut = future_inputs()
-    start_ask = requirements()
+    start_ask = requirements(short_term_plan=True)
 
     end_rest_center = start_rest_center.copy()
     end_rest_tn = start_rest_tn.copy()
     end_fut = start_fut.copy()
     end_ask = start_ask.copy()
 
+    # списание остатков на потребности
     end_ask, end_rest_tn, end_rest_center, end_fut, operations = write_off(
         table=end_ask,
         rest_tn=end_rest_tn,
@@ -55,7 +56,7 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    chdir(r'C:\LOG_1\calculation_metal')  # что бы планировщик заданий переключался на правильную директорию
+    # chdir(r'C:\LOG_1\calculation_metal')  # что бы планировщик заданий переключался на правильную директорию
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     # logging.disable(level=logging.CRITICAL)
     main()
