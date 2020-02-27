@@ -6,15 +6,16 @@ from common.common import (
     modify_col, replace_minus, extract_product_name
 )
 from pandas import (
-    DataFrame, read_csv, merge, NaT
+    DataFrame, read_csv, merge, NaT, read_sql_query
 )
-from datetime import datetime
+from datetime import datetime, timedelta
 from numpy import nan
+from pypyodbc import connect
 
 NOW: datetime = datetime.now()
 
 
-def requirements() -> DataFrame:
+def requirements(short_term_plan: bool = False) -> DataFrame:
     """Загузка таблицы с первичной потребностью (дефицитом), форматирование таблицы."""
     path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Расчет металл (ANSITXT).txt"
     data = read_csv(
@@ -24,6 +25,10 @@ def requirements() -> DataFrame:
         parse_dates=['Дата запуска', 'Дата начала факт', 'Дата поступления КМД'],
         dayfirst=True
     )
+    if short_term_plan is True:  # для краткосрочного планирования сразу обрезаем по дате
+        end_date = NOW + timedelta(days=4)
+        data = data[data['Дата запуска'] <= end_date]
+
     data = data[~data['Номенклатура'].isna()]
     data = data.fillna(value=0)
     data = data.rename(columns={'Обеспечена МП': 'Заказ обеспечен'})
@@ -34,13 +39,16 @@ def requirements() -> DataFrame:
     data['Партия'] = modify_col(data['Партия'], instr=1, space=1).replace({'0': '1', '0.0': '1'})
     data['Количество в заказе'] = modify_col(data['Количество в заказе'], instr=1, space=1, comma=1, numeric=1)
     data['Дефицит'] = modify_col(data['Дефицит'], instr=1, space=1, comma=1, numeric=1).map(replace_minus)
-    data['Перемещено'] = modify_col(data['Перемещено'], instr=1, space=1, comma=1, numeric=1)
+    data['Перемещено'] = modify_col(data['Перемещено'], instr=1, space=1, comma=1, numeric=1, minus=1)
     data['Заказ обеспечен'] = modify_col(data['Заказ обеспечен'], instr=1, space=1, comma=1, numeric=1)
     data['Пометка удаления'] = modify_col(data['Пометка удаления'], instr=1, space=1, comma=1, numeric=1)
     data['Заказ-Партия'] = data['Номер победы'] + "-" + data['Партия']
+    appr_orders = approved_orders(tuple(data['Номер победы'].unique()))
+    data = merge(data, appr_orders, how='left', on='Номер победы', copy=False)
     data['Дефицит'] = data['Дефицит'].where(
         (data['Заказ обеспечен'] == 0) &
-        (data['Пометка удаления'] == 0),
+        (data['Пометка удаления'] == 0) &
+        (data['Закуп подтвержден'] == 1),
         0
     )
     data['Изделие'] = modify_col(data['Изделие'], instr=1).map(extract_product_name)
@@ -164,3 +172,39 @@ def multiple_sort(table: DataFrame) -> DataFrame:
     data = data.sort_values(by=sort_columns)
 
     return data
+
+
+def long_term_sortaments() -> DataFrame:
+    """Загрузка таблицы с сортаментами длинной поставки."""
+    path = r'support_data/outloads/long_term_sortaments.csv'
+    data = read_csv(
+        path,
+        sep=';',
+        encoding='ansi'
+    )
+
+    logging.info('Длинные сортаменты загрузились')
+    return data
+
+
+def approved_orders(orders: tuple) -> DataFrame:
+    """Заказы с подтверждением закупа материалов по ним.
+
+    :param orders: список уникальных заказов
+    """
+    with open(r'support_data/outloads/query_approved_orders.sql') as file:
+        query = file.read().format(orders)
+    connection = connect(
+        "Driver={SQL Server};"
+        "Server=OEMZ-POBEDA-01.osnovaholding.ru;"
+        "Database=ProdMgrDB;"
+        "uid=1C_Exchange;pwd=1"
+    )
+    data = read_sql_query(query, connection)
+    data['Закуп подтвержден'] = data['level_of_allowing'].map(lambda x: 1 if x >= 5 else 0)
+    data['Закуп подтвержден'] = data['Закуп подтвержден'].where(
+        data['number_order'].map(lambda x: False if x[1] == '0' else True),
+        1
+    )
+    data = data.rename(columns={'number_order': 'Номер победы'})
+    return data[['Номер победы', 'Закуп подтвержден']]

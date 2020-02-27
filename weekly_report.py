@@ -8,11 +8,15 @@ from etl.extract import (
     tn_rests, future_inputs, requirements
 )
 from common.common import check_calculation_right
+from datetime import datetime
 from reports.main import weekly_reports
 
 
 def main() -> None:
     """Выполнение расчетов"""
+    separate_date = input('Введите дату окончания краскосрочного периода,\nВ формате ДД.ММ.ГГГГ:\n')
+    separate_date = datetime.strptime(separate_date, '%d.%m.%Y')
+
     operations = list()
     dict_repl = replacements()
     start_rest_center = center_rests()
@@ -25,6 +29,7 @@ def main() -> None:
     end_fut = start_fut.copy()
     end_ask = start_ask.copy()
 
+    # списание остатков на потребности
     end_ask, end_rest_tn, end_rest_center, end_fut, operations = write_off(
         table=end_ask,
         rest_tn=end_rest_tn,
@@ -48,7 +53,8 @@ def main() -> None:
     weekly_reports(
         start_ask_=start_ask,
         end_ask_=end_ask,
-        oper_=operations
+        oper_=operations,
+        sep_date=separate_date
     )
 
 

@@ -8,13 +8,13 @@ from shutil import copy
 
 
 def weekly_excel_reports() -> None:
-    """Формирование отчетов (ежедневных и еженедельных) в эксель файлах"""
+    """Формирование еженедельных отчетов в эксель файлах"""
     weekly_report_name = r".\support_data\reports\Итоговая_потребность.xlsm"
     macro(weekly_report_name)
 
 
 def daily_excel_reports() -> None:
-    """Формирование отчетов (ежедневных и еженедельных) в эксель файлах"""
+    """Формирование ежедневных отчетов в эксель файлах"""
     daily_report_name = r".\support_data\reports\Дефицит.xlsm"
     macro(daily_report_name)
     destination = (

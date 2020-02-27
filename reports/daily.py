@@ -1,7 +1,6 @@
 """Daily reports"""
 
 from etl.extract import NOW
-from datetime import timedelta
 from pandas import (
     DataFrame, concat, read_csv
 )
@@ -33,8 +32,6 @@ def deficit(table_: DataFrame) -> None:
     table['Остаток дефицита'] = table['Остаток дефицита'] + table['Списание из Поступлений']
     table['Заказчик'] = table['Заказчик'].replace({0: 'Омский ЭМЗ', '0': 'Омский ЭМЗ'})
     table = table[(table['Заказ обеспечен'] == 0) & (table['Пометка удаления'] == 0)]
-    end_date = NOW + timedelta(days=4)
-    table = table[table['Дата запуска'] <= end_date]
     table = table[need_columns]
 
     first_table = main_deficit_table(table)

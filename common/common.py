@@ -8,7 +8,7 @@ from datetime import datetime
 from pandas import (DataFrame, Series)
 
 
-def modify_col(col: Series, instr=0, space=0, comma=0, numeric=0) -> Series:
+def modify_col(col: Series, instr=0, space=0, comma=0, numeric=0, minus=0) -> Series:
     """Изменяет колонку в зависимости от вида:
 
     :param col: колнка, которую нужно поменять
@@ -16,6 +16,7 @@ def modify_col(col: Series, instr=0, space=0, comma=0, numeric=0) -> Series:
     :param space: если 1, то удаляет пробелы
     :param comma: если 1, то заменяет запятые на точки в цифрах
     :param numeric: если 1, то в число с точкой
+    :param minus: если 1, то минусовое число в ноль
     """
     if instr == 1:
         col = col.map(str)
@@ -25,6 +26,8 @@ def modify_col(col: Series, instr=0, space=0, comma=0, numeric=0) -> Series:
         col = col.map(replace_comma)
     if numeric == 1:
         col = col.map(float)
+    if minus == 1:
+        col = col.map(lambda x: 0 if x < 0 else x)
     return col
 
 
