@@ -57,6 +57,13 @@ def main() -> None:
 
 if __name__ == '__main__':
     # chdir(r'C:\LOG_1\calculation_metal')  # что бы планировщик заданий переключался на правильную директорию
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        filename=r'.\logs.txt'
+    )
     # logging.disable(level=logging.CRITICAL)
-    main()
+    try:
+        main()
+    except Exception as error:
+        logging.info(error)

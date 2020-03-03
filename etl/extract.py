@@ -196,7 +196,7 @@ def approved_orders(orders: tuple) -> DataFrame:
         query = file.read().format(orders)
     connection = connect(
         "Driver={SQL Server};"
-        "Server=OEMZ-POBEDA-01.osnovaholding.ru;"
+        "Server=OEMZ-POBEDA;"
         "Database=ProdMgrDB;"
         "uid=1C_Exchange;pwd=1"
     )
