@@ -206,5 +206,6 @@ def approved_orders(orders: tuple) -> DataFrame:
         data['number_order'].map(lambda x: False if x[1] == '0' else True),
         1
     )
+    data['Возможный заказ'] = data['level_of_allowing'].map(lambda x: 1 if x == 4 else 0)
     data = data.rename(columns={'number_order': 'Номер победы'})
-    return data[['Номер победы', 'Закуп подтвержден']]
+    return data[['Номер победы', 'Закуп подтвержден', 'Возможный заказ']]

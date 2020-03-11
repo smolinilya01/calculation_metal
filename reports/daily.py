@@ -1,9 +1,11 @@
 """Daily reports"""
 
+from os import walk
 from etl.extract import NOW
 from pandas import (
-    DataFrame, concat, read_csv
+    DataFrame, concat, read_csv, Timestamp
 )
+from datetime import timedelta
 
 
 def daily_tables() -> None:
@@ -19,7 +21,7 @@ def daily_tables() -> None:
 
 
 def deficit(table_: DataFrame) -> None:
-    """Создание отчета по дефициту на сегодня + 4 дня вперед
+    """Создание отчета по дефициту на сегодня + 4 дня вперед (requirements() сразу обрезает +4 дня)
 
     :param table_: главная таблица output_req
     """
@@ -68,13 +70,16 @@ def main_deficit_table(table: DataFrame) -> DataFrame:
         'Номер победы', 'Партия', 'Дата запуска',
         'Заказчик', 'Изделие'
     ]
+    problems = compare_with_prev_ask(table)  # готовая таблица с индикатором проблем (переносы, отклонение потреб)
+
     detail_table = table.copy()
     detail_table = detail_table.groupby(by=group_columns).sum().reset_index()
+    detail_table['Проблема'] = None
     detail_table['Обеспеченность'] = 1 - (detail_table['Остаток дефицита'] / detail_table['Количество в заказе'])
     detail_table['Остаточная потребность'] = None
     detail_table['Дата запуска ФАКТ'] = None  # потом заменится на существующую колонку
-    detail_table = detail_table[detail_table['Остаток дефицита'] >= 0.0001]
-    detail_table = detail_table.sort_values(by=['Дата запуска'])
+    detail_table = detail_table[detail_table['Остаток дефицита'] >= 0.01]
+    # detail_table = detail_table.sort_values(by=['Дата запуска'])
 
     first_table = list()
     for i in range(len(detail_table)):  # заполнение первой таблицы отчета
@@ -88,6 +93,13 @@ def main_deficit_table(table: DataFrame) -> DataFrame:
         ].copy()
         nomenclature_row['Заказчик'] = nomenclature_row['Номенклатура']
         nomenclature_row['Остаточная потребность'] = nomenclature_row['Остаток дефицита']
+
+        nomenclature_row = nomenclature_row.merge(
+            problems,
+            how='left',
+            on=['Номер победы', 'Партия', 'Номенклатура']
+        )
+
         nomenclature_row['Обеспеченность'] = None
         nomenclature_row['Дата запуска ФАКТ'] = None
         row_columns = set(table.columns) - {'Заказчик', 'Остаточная потребность'}
@@ -101,7 +113,7 @@ def main_deficit_table(table: DataFrame) -> DataFrame:
     first_table = first_table[[
         'Дата запуска', 'Дата запуска ФАКТ', 'Заказчик',
         'Изделие', 'Номер победы', 'Партия',
-        'Остаточная потребность', 'Обеспеченность'
+        'Остаточная потребность', 'Обеспеченность', 'Проблема'
     ]]
     first_table = first_table.rename(columns={
         'Дата запуска': 'Дата запуска ПЛАН',
@@ -112,6 +124,60 @@ def main_deficit_table(table: DataFrame) -> DataFrame:
     first_table['Примечание МТО'] = None
     first_table['Примечание ПО'] = None
     return first_table
+
+
+def compare_with_prev_ask(table: DataFrame) -> DataFrame:
+    """Загружает предыдущий файл недельного расчета.
+    И сравнивает с текущим расчетом по дате запуска и кол-ву в заказе.
+
+    :param table: таблица с подготовленными данными output_req из deficit()
+    """
+    end_date = NOW + timedelta(days=4)
+    path = r'W:\Analytics\Илья\Задание 14 Расчет потребности для МТО\data'
+    need_columns = ['Номер победы', 'Партия', 'Дата запуска', 'Номенклатура', 'Количество в заказе']
+
+    name_prev_file = [i for i in walk(path)][0][2][-1]
+    path += "\\" + name_prev_file
+    prev_data = read_csv(
+        path,
+        sep=";",
+        encoding='ansi',
+        parse_dates=['Дата запуска']
+    )
+    prev_data = prev_data[prev_data['Дата запуска'] <= end_date][need_columns]
+
+    data: DataFrame = table.copy()[need_columns]
+    data = data.merge(
+        prev_data,
+        how='left',
+        on=['Номер победы', 'Партия', 'Номенклатура'],
+        suffixes=('_cur', '_prev'))
+
+    # вычисляемые столбцы
+    data['Проблема'] = None
+    data['Проблема'] = (
+        'Изменение даты ' + '(' +
+        data['Дата запуска_prev'].map(lambda x: x.strftime('%d.%m.%Y') if isinstance(x, Timestamp) else str(x)) +
+        '->' + data['Дата запуска_cur'].map(lambda x: x.strftime('%d.%m.%Y')) + ')'
+    ).where(
+        (data['Дата запуска_cur'] != data['Дата запуска_prev']) &
+        ~(data['Дата запуска_prev'].isna()),
+        data['Проблема']
+    )
+    data['Проблема'] = data['Проблема'].where(
+        ~(data['Дата запуска_prev'].isna()),
+        'Не было в этом периоде'
+    )
+    data['Проблема'] = (
+        'Изменение потребности (' +
+        data['Количество в заказе_prev'].map(lambda x: str(round(x, 3))) + '->' +
+        data['Количество в заказе_cur'].map(lambda x: str(round(x, 3))) + ')'
+    ).where(
+        (data['Количество в заказе_cur'] > data['Количество в заказе_prev']),
+        data['Проблема']
+    )
+    data = data[['Номер победы', 'Партия', 'Номенклатура', 'Проблема']]
+    return data.drop_duplicates()
 
 
 def second_deficit_table(table: DataFrame) -> DataFrame:
