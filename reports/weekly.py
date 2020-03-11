@@ -339,7 +339,8 @@ def check_long_nomenclature(x: str, list_long_sort: DataFrame) -> int:
 
 
 def long_nomenclature_orders(data: DataFrame, sep_date: datetime) -> None:
-    """Подготавливает таблицу с заказами в долгосрочной перспективе с длинной номенклатурой
+    """Подготавливает 2 таблиц: с заказами в долгосрочной перспективе с длинной номенклатурой,
+        и с заказами и длинной номенклатурой, но без подтверждения закупа (статус 4)
 
     :param data: output_req
     :param sep_date: Дата разделения краткосрочного периода и долгосрочного = последний день краткосрочного
@@ -361,5 +362,26 @@ def long_nomenclature_orders(data: DataFrame, sep_date: datetime) -> None:
 
     lmo.to_csv(
         r".\support_data\data_for_reports\long_nomenclature_orders.csv",
+        sep=";", encoding='ansi', index=False
+    )
+
+    # подготовка длинной номенклатуры со статусом 4
+    possible = data[
+        (data['Заказ обеспечен'] == 0) &
+        (data['Пометка удаления'] == 0) &
+        (data['Возможный заказ'] == 1) &
+        (data['Количество в заказе'] != 0) &
+        (data['Дата запуска'] > sep_date)
+    ].copy()
+    possible['Дефицит'] = possible['Количество в заказе'] - possible['Перемещено']
+    possible['Длинная_ном'] = possible['Номенклатура'].map(lambda x: check_long_nomenclature(x, lts))
+    possible = possible[(possible['Длинная_ном'] == 1) & (possible['Дефицит'] != 0)]
+    possible = possible[[
+        'Дата запуска', 'Заказ-Партия', 'Заказчик',
+        'Спецификация', 'Номенклатура', 'Дефицит'
+    ]]
+
+    possible.to_csv(
+        r".\support_data\data_for_reports\long_nomenclature_possible_orders.csv",
         sep=";", encoding='ansi', index=False
     )
