@@ -11,6 +11,7 @@ from etl.extract import (
 )
 from common.common import check_calculation_right
 from reports.main import daily_reports
+from traceback import format_exc
 
 
 def main() -> None:
@@ -65,5 +66,5 @@ if __name__ == '__main__':
     # logging.disable(level=logging.CRITICAL)
     try:
         main()
-    except Exception as error:
-        logging.info(error)
+    except Exception:
+        logging.info(format_exc())
