@@ -15,7 +15,7 @@ def daily_tables() -> None:
         name_output_req,
         sep=";",
         encoding='ansi',
-        parse_dates=['Дата запуска']
+        parse_dates=['Дата запуска', 'Дата начала факт']
     )
     deficit(output_req)
 
@@ -28,7 +28,7 @@ def deficit(table_: DataFrame) -> None:
     need_columns = [
         'Номер победы', 'Партия', 'Дата запуска',
         'Номенклатура', 'Количество в заказе',
-        'Заказчик', 'Изделие', 'Остаток дефицита'
+        'Заказчик', 'Изделие', 'Остаток дефицита', 'Дата начала факт'
     ]
     table: DataFrame = table_.copy()
     table['Остаток дефицита'] = table['Остаток дефицита'] + table['Списание из Поступлений']
@@ -37,8 +37,17 @@ def deficit(table_: DataFrame) -> None:
     table = table[need_columns]
 
     first_table = main_deficit_table(table)
+    second_table = second_deficit_table(first_table)
+    first_table['Дата запуска ФАКТ'] = first_table['Дата запуска ФАКТ'].replace({'0': None})
+
     first_table.to_csv(
         r'.\support_data\data_for_reports\daily_deficit_1.csv',
+        sep=";",
+        encoding='ansi',
+        index=False
+    )
+    second_table.to_csv(
+        r'.\support_data\data_for_reports\daily_deficit_2.csv',
         sep=";",
         encoding='ansi',
         index=False
@@ -52,14 +61,6 @@ def deficit(table_: DataFrame) -> None:
         index=False
     )
 
-    second_table = second_deficit_table(first_table)
-    second_table.to_csv(
-        r'.\support_data\data_for_reports\daily_deficit_2.csv',
-        sep=";",
-        encoding='ansi',
-        index=False
-    )
-
 
 def main_deficit_table(table: DataFrame) -> DataFrame:
     """Создание заготовки главной таблицы ежедневного отчета по дефициту
@@ -68,7 +69,7 @@ def main_deficit_table(table: DataFrame) -> DataFrame:
     """
     group_columns = [
         'Номер победы', 'Партия', 'Дата запуска',
-        'Заказчик', 'Изделие'
+        'Заказчик', 'Изделие', 'Дата начала факт'
     ]
     problems = compare_with_prev_ask(table)  # готовая таблица с индикатором проблем (переносы, отклонение потреб)
 
@@ -77,9 +78,10 @@ def main_deficit_table(table: DataFrame) -> DataFrame:
     detail_table['Проблема'] = None
     detail_table['Обеспеченность'] = 1 - (detail_table['Остаток дефицита'] / detail_table['Количество в заказе'])
     detail_table['Остаточная потребность'] = None
-    detail_table['Дата запуска ФАКТ'] = None  # потом заменится на существующую колонку
+    detail_table['Дата запуска ФАКТ'] = detail_table['Дата начала факт']
+    del detail_table['Дата начала факт']
     detail_table = detail_table[detail_table['Остаток дефицита'] >= 0.01]
-    # detail_table = detail_table.sort_values(by=['Дата запуска'])
+    detail_table = detail_table.sort_values(by=['Дата запуска'])
 
     first_table = list()
     for i in range(len(detail_table)):  # заполнение первой таблицы отчета
@@ -127,7 +129,7 @@ def main_deficit_table(table: DataFrame) -> DataFrame:
 
 
 def compare_with_prev_ask(table: DataFrame) -> DataFrame:
-    """Загружает предыдущий файл недельного расчета.
+    """Загружает предпредыдущий файл недельного расчета.
     И сравнивает с текущим расчетом по дате запуска и кол-ву в заказе.
 
     :param table: таблица с подготовленными данными output_req из deficit()
@@ -136,7 +138,7 @@ def compare_with_prev_ask(table: DataFrame) -> DataFrame:
     path = r'W:\Analytics\Илья\Задание 14 Расчет потребности для МТО\data'
     need_columns = ['Номер победы', 'Партия', 'Дата запуска', 'Номенклатура', 'Количество в заказе']
 
-    name_prev_file = [i for i in walk(path)][0][2][-1]
+    name_prev_file = [i for i in walk(path)][0][2][-2]
     path += "\\" + name_prev_file
     prev_data = read_csv(
         path,
@@ -180,18 +182,29 @@ def compare_with_prev_ask(table: DataFrame) -> DataFrame:
     return data.drop_duplicates()
 
 
-def second_deficit_table(table: DataFrame) -> DataFrame:
+def second_deficit_table(table_: DataFrame) -> DataFrame:
     """Создание второй таблицы ежедневного отчета по дефициту
 
     :param table: таблица из main_deficit_table
     """
-    launch = table[(~table['Дата запуска ФАКТ'].isna()) & (table['Дата запуска ПЛАН'].isna())]
-    non_launch = table[(table['Дата запуска ФАКТ'].isna()) & (table['Дата запуска ПЛАН'].isna())]
+    table = table_.copy()
+    table['Дата запуска ПЛАН'] = table['Дата запуска ПЛАН'].ffill()
+    table['Дата запуска ФАКТ'] = table['Дата запуска ФАКТ'].ffill()
+
+    launch = table[table['Дата запуска ФАКТ'] != '0']
+    non_launch = table[table['Дата запуска ФАКТ'] == '0']
 
     need_columns = ['Заказчик/Сортамент', 'Остаточная потребность']
-    launch, non_launch = launch[need_columns], non_launch[need_columns]
-    launch = launch.groupby(by=['Заказчик/Сортамент']).sum().reset_index()
-    non_launch = non_launch.groupby(by=['Заказчик/Сортамент']).sum().reset_index()
+    launch = launch[need_columns][launch['Изделие'].isna()]
+    non_launch = non_launch[need_columns][non_launch['Изделие'].isna()]
+    launch = launch.\
+        groupby(by=['Заказчик/Сортамент']).\
+        sum().\
+        reset_index()
+    non_launch = non_launch.\
+        groupby(by=['Заказчик/Сортамент']).\
+        sum().\
+        reset_index()
 
     second_table = DataFrame(data=None, columns=launch.columns)
     second_table.loc[0] = ['В работе', launch['Остаточная потребность'].sum()]
