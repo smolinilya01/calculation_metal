@@ -57,7 +57,12 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
 
     tn_ord = tn_orders()
     data = merge(data, tn_ord, how='left', on='Заказ-Партия', copy=False)  # индикатор ТН в таблицу потребности
-    data = multiple_sort(data)  # сортировка потребности и определение
+
+    if short_term_plan is True:  # для краткосрочного планирования сразу обрезаем по дате
+        data = multiple_sort(data)  # сортировка потребности и определение
+    else:
+        data = data.sort_values(by='Дата запуска')  # сортировка потребности и определение
+
     data = data.reset_index().rename(columns={'index': 'Поряд_номер'})  # определение поряд номера
 
     logging.info('Потребность загрузилась')
