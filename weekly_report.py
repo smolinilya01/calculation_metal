@@ -5,7 +5,8 @@ import logging
 from algo.write_off import write_off
 from etl.extract import (
     replacements, center_rests,
-    tn_rests, future_inputs, requirements
+    tn_rests, future_inputs, requirements,
+    nomenclature
 )
 from common.common import check_calculation_right
 from datetime import datetime
@@ -18,10 +19,11 @@ def main() -> None:
     separate_date = datetime.strptime(separate_date, '%d.%m.%Y')
 
     operations = list()
+    dict_nom = nomenclature()
     dict_repl = replacements()
-    start_rest_center = center_rests()
-    start_rest_tn = tn_rests()
-    start_fut = future_inputs()
+    start_rest_center = center_rests(nom_=dict_nom)
+    start_rest_tn = tn_rests(nom_=dict_nom)
+    start_fut = future_inputs(nom_=dict_nom)
     start_ask = requirements()
 
     end_rest_center = start_rest_center.copy()
@@ -36,6 +38,7 @@ def main() -> None:
         rest_c=end_rest_center,
         fut=end_fut,
         oper_=operations,
+        nom_=dict_nom,
         repl_=dict_repl
     )
 

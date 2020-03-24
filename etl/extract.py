@@ -1,6 +1,7 @@
 """Extract data"""
 
 import logging
+import re
 
 from common.common import (
     modify_col, replace_minus, extract_product_name
@@ -63,32 +64,75 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
     return data
 
 
-def replacements() -> DataFrame:
-    """Загузка таблицы с заменами, форматирование таблицы."""
-    path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Замены (ANSITXT).txt"
+def nomenclature() -> DataFrame:
+    """Загузка таблицы со структурными данными для замен."""
+    path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Справочник_металла (ANSITXT).txt"
     data = read_csv(
         path,
         sep='\t',
-        encoding='ansi',
-        parse_dates=['Период завершения'],
-        dayfirst=True
+        encoding='ansi'
     )
-    renames = {
-        'Материал.Код': 'Номенклатура.Код',
-        'Материал': 'Номенклатура',
-        'Коэффициент замены': 'Коэф_замены',
-        'Период завершения': 'Завершение',
-        'Аналог.Категория стали': 'Аналог.Кат_стали'
-    }
-    data = data.rename(columns=renames)
-    data = data.sort_values(by=['Номенклатура', 'Аналог.Кат_стали'])
+    """помещение названия в индекс
+    колонка названия номенклатуры остается и в таблице и в индексе для дальнейшей работы"""
+    data = data.\
+        rename(columns={'Номенклатура': 'index'}).\
+        set_index('index', drop=False).\
+        rename(columns={'index': 'Номенклатура'}). \
+        fillna('')
+
+    data['Марка-категория'] = (
+        data['Номенклатура.Марка стали'] + '-' +
+        data['Номенклатура.Категория стали']
+    )
+    data['Сортамент'] = data.iloc[:, :3].apply(lambda x: create_sortam(x), axis=1)
+    data = data.rename(columns={
+        'Номенклатура.Стандарт на сортамент (ГОСТ)': 'ГОСТ Сортамента',
+        'Номенклатура.Марка стали': 'Марка',
+        'Номенклатура.Категория стали': 'Категория'
+    })
+    data = data[[
+        'Номенклатура', 'Сортамент',
+        'ГОСТ Сортамента', 'Марка',
+        'Категория', 'Марка-категория'
+    ]]
+    data['Сортамет+Марка'] = (
+            data['Сортамент'].map(str.strip) + '-' +
+            data['Марка-категория'].map(str.strip)
+    )  # Создание столбца Сортам_маркак
+
+    logging.info('Номенклатура загрузилась')
+    return data
+
+
+def create_sortam(x) -> str:
+    """Создание сортамента из наименования, вида и госта"""
+    nom, vid, gost = str(x[0]).strip(), str(x[1]).strip(), str(x[2]).strip()
+    if '' in [nom, vid, gost]:
+        return ''
+
+    sortam = re.search(f'{vid}(\s*.+)\s*{gost}', nom).group(1)
+
+    return vid + sortam.rstrip()
+
+
+def replacements() -> DataFrame:
+    """Загузка таблицы с заменами марки и категории."""
+    path = r'.\support_data\outloads\dict_replacement.csv'
+    data = read_csv(
+        path,
+        sep=';',
+        encoding='ansi'
+    )
 
     logging.info('Замены загрузились')
     return data
 
 
-def center_rests() -> DataFrame:
-    """Загузка таблицы с остатками на центральном складе, форматирование таблицы."""
+def center_rests(nom_: DataFrame) -> DataFrame:
+    """Загузка таблицы с остатками на центральном складе, форматирование таблицы.
+
+    :param nom_: таблица из nomenclature() - справочник номенклатуры
+    """
     path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\!metal_center+metiz (ANSITXT).txt"
     data = read_csv(
         path,
@@ -101,13 +145,17 @@ def center_rests() -> DataFrame:
     data = data[data['Количество'] > 0]
     data['Склад'] = 'Центральный склад'  # Склады центральные по металлу, метизам и вход контроля
     data['Дата'] = datetime(NOW.year, NOW.month, NOW.day)
+    data = data.merge(nom_[['Номенклатура', 'Сортамет+Марка']], on='Номенклатура', how='left')
 
     logging.info('Остатки центрального склада загрузились')
     return data
 
 
-def tn_rests() -> DataFrame:
-    """Загрузка таблицы с остатками на складе ТН, форматирование таблицы."""
+def tn_rests(nom_: DataFrame) -> DataFrame:
+    """Загрузка таблицы с остатками на складе ТН, форматирование таблицы.
+
+    :param nom_: таблица из nomenclature() - справочник номенклатуры
+    """
     path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\!metal_tn (ANSITXT).txt"
     data = read_csv(
         path,
@@ -119,13 +167,17 @@ def tn_rests() -> DataFrame:
     data['Количество'] = modify_col(data['Количество'], instr=1, space=1, comma=1, numeric=1)
     data['Склад'] = 'ТН'
     data['Дата'] = datetime(NOW.year, NOW.month, NOW.day)
+    data = data.merge(nom_[['Номенклатура', 'Сортамет+Марка']], on='Номенклатура', how='left')
 
     logging.info('Остатки склада ТН загрузились')
     return data
 
 
-def future_inputs() -> DataFrame:
-    """Загрузка таблицы с поступлениями, форматирование таблицы."""
+def future_inputs(nom_: DataFrame) -> DataFrame:
+    """Загрузка таблицы с поступлениями, форматирование таблицы.
+
+    :param nom_: таблица из nomenclature() - справочник номенклатуры
+    """
     path = r'support_data/outloads/rest_futures_inputs.csv'
     data = read_csv(
         path,
@@ -136,8 +188,10 @@ def future_inputs() -> DataFrame:
     )
     data['Количество'] = modify_col(data['Количество'], instr=1, space=1, comma=1, numeric=1)
     data['Склад'] = 'Поступления'
-    data = data.fillna(0)
-    data = data.sort_values(by='Дата')
+    data = data.\
+        fillna(0).\
+        sort_values(by='Дата')
+    data = data.merge(nom_[['Номенклатура', 'Сортамет+Марка']], on='Номенклатура', how='left')
 
     logging.info('Поступления загрузились')
     return data
