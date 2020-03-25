@@ -1,10 +1,12 @@
 """Execute excel macros"""
 
+import logging
 import win32com.client
 
 from etl.extract import NOW
 from os import path
 from shutil import copy
+from traceback import format_exc
 
 
 def weekly_excel_reports() -> None:
@@ -21,7 +23,11 @@ def daily_excel_reports() -> None:
         r'\\oemz-fs01.oemz.ru\Works$\1.1. Отчеты по производству\1.1.5 Отчет по дефициту заказов' +
         f'\\{NOW.strftime("%Y%m%d")}_Дефицит.xlsm'
     )
-    copy(daily_report_name, destination)
+    try:
+        copy(daily_report_name, destination)
+    except Exception:
+        copy(daily_report_name.replace('.xlsm', '_1.xlsm'), destination)
+        logging.info(format_exc)
 
 
 def macro(path_: str) -> None:
