@@ -14,6 +14,7 @@ from numpy import nan
 from pypyodbc import connect
 
 NOW: datetime = datetime.now()
+DAYS_AFTER: int = 4  # для расчета дневного дефицита, определеяет период от сегодня + 4 дня
 
 
 def requirements(short_term_plan: bool = False) -> DataFrame:
@@ -27,7 +28,7 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
         dayfirst=True
     )
     if short_term_plan is True:  # для краткосрочного планирования сразу обрезаем по дате
-        end_date = NOW + timedelta(days=4)
+        end_date = NOW + timedelta(days=DAYS_AFTER)
         data = data[data['Дата запуска'] <= end_date]
 
     data = data[~data['Номенклатура'].isna()]

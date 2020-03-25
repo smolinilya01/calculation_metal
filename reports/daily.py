@@ -1,7 +1,7 @@
 """Daily reports"""
 
 from os import walk
-from etl.extract import NOW
+from etl.extract import NOW, DAYS_AFTER
 from pandas import (
     DataFrame, concat, read_csv, Timestamp
 )
@@ -134,7 +134,7 @@ def compare_with_prev_ask(table: DataFrame) -> DataFrame:
 
     :param table: таблица с подготовленными данными output_req из deficit()
     """
-    end_date = NOW + timedelta(days=4)
+    end_date = NOW + timedelta(days=DAYS_AFTER)
     path = r'W:\Analytics\Илья\Задание 14 Расчет потребности для МТО\data'
     need_columns = ['Номер победы', 'Партия', 'Дата запуска', 'Номенклатура', 'Количество в заказе']
 
