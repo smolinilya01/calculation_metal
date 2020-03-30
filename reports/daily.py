@@ -15,7 +15,8 @@ def daily_tables() -> None:
         name_output_req,
         sep=";",
         encoding='ansi',
-        parse_dates=['Дата запуска', 'Дата начала факт']
+        parse_dates=['Дата запуска', 'Дата начала факт'],
+        dtype={'Номер победы': 'object'}
     )
     deficit(output_req)
 
