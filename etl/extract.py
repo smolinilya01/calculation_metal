@@ -65,6 +65,12 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
         data = data.sort_values(by='Дата запуска')  # сортировка потребности и определение
 
     data = data.reset_index().rename(columns={'index': 'Поряд_номер'})  # определение поряд номера
+    data.to_csv(
+        f'W:\\Analytics\\Илья\\!deficit_work_files\\requirements {NOW.strftime("%y%m%d %H_%M_%S")}.csv',
+        sep=";",
+        encoding='ansi',
+        index=False
+    )  # запись используемых файлов, для взгляда в прошлое
 
     logging.info('Потребность загрузилась')
     return data
@@ -152,6 +158,12 @@ def center_rests(nom_: DataFrame) -> DataFrame:
     data['Склад'] = 'Центральный склад'  # Склады центральные по металлу, метизам и вход контроля
     data['Дата'] = datetime(NOW.year, NOW.month, NOW.day)
     data = data.merge(nom_[['Номенклатура', 'Сортамет+Марка']], on='Номенклатура', how='left')
+    data.to_csv(
+        f'W:\\Analytics\\Илья\\!deficit_work_files\\rests_center {NOW.strftime("%y%m%d %H_%M_%S")}.csv',
+        sep=";",
+        encoding='ansi',
+        index=False
+    )  # запись используемых файлов, для взгляда в прошлое
 
     logging.info('Остатки центрального склада загрузились')
     return data
@@ -174,6 +186,12 @@ def tn_rests(nom_: DataFrame) -> DataFrame:
     data['Склад'] = 'ТН'
     data['Дата'] = datetime(NOW.year, NOW.month, NOW.day)
     data = data.merge(nom_[['Номенклатура', 'Сортамет+Марка']], on='Номенклатура', how='left')
+    data.to_csv(
+        f'W:\\Analytics\\Илья\\!deficit_work_files\\rests_tn {NOW.strftime("%y%m%d %H_%M_%S")}.csv',
+        sep=";",
+        encoding='ansi',
+        index=False
+    )  # запись используемых файлов, для взгляда в прошлое
 
     logging.info('Остатки склада ТН загрузились')
     return data

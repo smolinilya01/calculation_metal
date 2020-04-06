@@ -18,6 +18,12 @@ def daily_tables() -> None:
         parse_dates=['Дата запуска', 'Дата начала факт'],
         dtype={'Номер победы': 'object'}
     )
+    output_req.to_csv(
+        f'W:\\Analytics\\Илья\\!deficit_work_files\\ask {NOW.strftime("%y%m%d %H_%M_%S")}.csv',
+        sep=";",
+        encoding='ansi',
+        index=False
+    )  # запись используемых файлов, для взгляда в прошлое
     deficit(output_req)
 
 
