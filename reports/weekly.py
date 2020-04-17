@@ -61,27 +61,29 @@ def weekly_tables(
     # detail_table - таблица для краткосрочного закупа
     if sep_date is None:  # если None, то для дефицита ежедневного и далее ну нужно идти
         return None
+    else:
+        # подготовка detail.csv
+        make_detail_table(data=output_req, sep_date=sep_date)
 
-    make_detail_table(data=output_req, sep_date=sep_date)
+        # подготовка graf.csv и graf_without_feat.csv
+        # эти графики только для краткосрочного периода
+        short_term = output_req[output_req['Дата запуска'] <= sep_date]
+        graph(table_=short_term, method='with_future_inputs')
+        graph(table_=short_term, method='without_future_inputs')
 
-    # графики подготавливаются только для короткого периода
-    short_term = output_req[output_req['Дата запуска'] <= sep_date]
-    graph(table_=short_term, method='with_future_inputs')
-    graph(table_=short_term, method='without_future_inputs')
+        # подготовка problem_orders.csv
+        # это заказы с проблемами для краткосрочной и долгосрочной перспективы
+        unpr_orders = make_unapproved_orders(data=output_req, sep_date=sep_date)
+        unpr_long_orders = make_unapproved_long_orders(data=output_req, sep_date=sep_date)
+        problem_orders = concat([unpr_orders, unpr_long_orders], axis=0)
+        problem_orders.to_csv(
+            r".\support_data\data_for_reports\problem_orders.csv",
+            sep=";", encoding='ansi', index=False
+        )
 
-    # подготовка неподтвержденных краткосрочных заказов
-    unpr_orders = make_unapproved_orders(data=output_req, sep_date=sep_date)
-
-    # подготовка неподтвержденных долгосрочных заказов с длинной номенклатурой
-    unpr_long_orders = make_unapproved_long_orders(data=output_req, sep_date=sep_date)
-
-    problem_orders = concat([unpr_orders, unpr_long_orders], axis=0)
-    problem_orders.to_csv(
-        r".\support_data\data_for_reports\problem_orders.csv",
-        sep=";", encoding='ansi', index=False
-    )
-    # подготовка дефицита длинной номенклатуры в долгосрочной перспективе
-    long_nomenclature_orders(data=output_req, sep_date=sep_date)
+        # подготовка long_nomenclature_orders.csv и long_nomenclature_possible_orders.csv
+        # это дефицит длинной номенклатуры в долгосрочной перспективе
+        long_nomenclature_orders(data=output_req, sep_date=sep_date)
 
 
 def operations_table(oper_: list) -> DataFrame:
@@ -280,10 +282,10 @@ def make_unapproved_orders(data: DataFrame, sep_date: datetime) -> DataFrame:
         (data['Количество в заказе'] != 0) &
         (data['Дата запуска'] <= sep_date)
         ][[
-        'Дата запуска', 'Заказ-Партия', 'Заказчик',
-        'Спецификация', 'Номенклатура',
-        'Количество в заказе', 'Перемещено'
-    ]]
+            'Дата запуска', 'Заказ-Партия', 'Заказчик',
+            'Спецификация', 'Номенклатура',
+            'Количество в заказе', 'Перемещено'
+        ]]
     unapproved_orders['Количество в заказе'] = (
             unapproved_orders['Количество в заказе'] - unapproved_orders['Перемещено']
     )
