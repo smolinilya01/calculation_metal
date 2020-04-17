@@ -11,8 +11,10 @@ from etl.extract import (
     nomenclature
 )
 from common.common import check_calculation_right
-from reports.main import daily_reports
 from traceback import format_exc
+from reports.weekly import weekly_tables
+from reports.daily import daily_tables
+from reports.excel import daily_excel_reports
 
 
 def main() -> None:
@@ -20,9 +22,9 @@ def main() -> None:
     operations = list()
     dict_nom = nomenclature()
     dict_repl = replacements()
-    start_rest_center = center_rests(nom_=dict_nom)
-    start_rest_tn = tn_rests(nom_=dict_nom)
-    start_fut = future_inputs(nom_=dict_nom)
+    start_rest_center = center_rests(dictionary=dict_nom, short_term_plan=True)
+    start_rest_tn = tn_rests(dictionary=dict_nom, short_term_plan=True)
+    start_fut = future_inputs(dictionary=dict_nom, short_term_plan=True)
     start_ask = requirements(short_term_plan=True)
 
     end_rest_center = start_rest_center.copy()
@@ -52,11 +54,14 @@ def main() -> None:
         end_fut_=end_fut,
     )
 
-    daily_reports(
+    weekly_tables(
         start_ask_=start_ask,
         end_ask_=end_ask,
-        oper_=operations
+        oper_=operations,
+        sep_date=None
     )
+    daily_tables()
+    daily_excel_reports()
 
 
 if __name__ == '__main__':

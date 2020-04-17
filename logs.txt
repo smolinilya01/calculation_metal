@@ -1,0 +1,40 @@
+2020-04-17 13:23:15,568 - INFO - Номенклатура загрузилась
+2020-04-17 13:23:15,608 - INFO - Замены загрузились
+2020-04-17 13:23:15,690 - INFO - Traceback (most recent call last):
+  File "C:\Users\smolin_in\AppData\Local\Programs\Python\Python37\lib\site-packages\pandas\core\indexes\base.py", line 2890, in get_loc
+    return self._engine.get_loc(key)
+  File "pandas\_libs\index.pyx", line 107, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas\_libs\index.pyx", line 131, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas\_libs\hashtable_class_helper.pxi", line 1607, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas\_libs\hashtable_class_helper.pxi", line 1614, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: 'Количество'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "W:/Analytics/Илья/!repositories/calculation_metal/daily_report.py", line 76, in <module>
+    main()
+  File "W:/Analytics/Илья/!repositories/calculation_metal/daily_report.py", line 25, in main
+    start_rest_center = center_rests(dictionary=dict_nom, short_term_plan=True)
+  File "W:\Analytics\Илья\!repositories\calculation_metal\etl\extract.py", line 158, in center_rests
+    data['Количество'] = modify_col(data['Количество'], instr=1, space=1, comma=1, numeric=1)
+  File "C:\Users\smolin_in\AppData\Local\Programs\Python\Python37\lib\site-packages\pandas\core\frame.py", line 2975, in __getitem__
+    indexer = self.columns.get_loc(key)
+  File "C:\Users\smolin_in\AppData\Local\Programs\Python\Python37\lib\site-packages\pandas\core\indexes\base.py", line 2892, in get_loc
+    return self._engine.get_loc(self._maybe_cast_indexer(key))
+  File "pandas\_libs\index.pyx", line 107, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas\_libs\index.pyx", line 131, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas\_libs\hashtable_class_helper.pxi", line 1607, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas\_libs\hashtable_class_helper.pxi", line 1614, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: 'Количество'
+
+2020-04-17 13:26:10,651 - INFO - Номенклатура загрузилась
+2020-04-17 13:26:10,684 - INFO - Замены загрузились
+2020-04-17 13:26:10,823 - INFO - Остатки центрального склада загрузились
+2020-04-17 13:26:10,871 - INFO - Остатки склада ТН загрузились
+2020-04-17 13:26:10,945 - INFO - Поступления загрузились
+2020-04-17 13:26:14,415 - INFO - Заказы ТН загрузилась
+2020-04-17 13:26:21,504 - INFO - Потребность загрузилась
+2020-04-17 13:26:39,281 - INFO - Таблицы подготовились: True
+2020-04-17 13:26:39,285 - INFO - Отклонение аска: 262479.0020000001; Отклонение остатков: 262479.002
+2020-04-17 13:26:39,289 - INFO - Потребность / 502908 / 240429

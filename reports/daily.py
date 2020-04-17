@@ -38,7 +38,7 @@ def deficit(table_: DataFrame) -> None:
         'Заказчик', 'Изделие', 'Остаток дефицита', 'Дата начала факт'
     ]
     table: DataFrame = table_.copy()
-    table['Остаток дефицита'] = table['Остаток дефицита'] + table['Списание из Поступлений']
+    # table['Остаток дефицита'] = table['Остаток дефицита'] + table['Списание из Поступлений']
     table['Заказчик'] = table['Заказчик'].replace({0: 'Омский ЭМЗ', '0': 'Омский ЭМЗ'})
     table = table[(table['Заказ обеспечен'] == 0) & (table['Пометка удаления'] == 0)]
     table = table[need_columns]
@@ -145,7 +145,7 @@ def compare_with_prev_ask(table: DataFrame) -> DataFrame:
     path = r'W:\Analytics\Илья\Задание 14 Расчет потребности для МТО\data'
     need_columns = ['Номер победы', 'Партия', 'Дата запуска', 'Номенклатура', 'Количество в заказе']
 
-    name_prev_file = [i for i in walk(path)][0][2][-2]
+    name_prev_file = [i for i in walk(path)][0][2][-1]
     path += "\\" + name_prev_file
     prev_data = read_csv(
         path,
@@ -192,7 +192,7 @@ def compare_with_prev_ask(table: DataFrame) -> DataFrame:
 def second_deficit_table(table_: DataFrame) -> DataFrame:
     """Создание второй таблицы ежедневного отчета по дефициту
 
-    :param table: таблица из main_deficit_table
+    :param table_: таблица из main_deficit_table
     """
     table = table_.copy()
     table['Дата запуска ПЛАН'] = table['Дата запуска ПЛАН'].ffill()
@@ -259,4 +259,3 @@ def provided_table(table: DataFrame) -> DataFrame:
     })
     prov_table['Обеспеченность'] = prov_table['Обеспеченность'].replace({None: 1})  # заказы с 0 потребностью, но с перемещениями
     return prov_table
-
