@@ -45,6 +45,8 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
     data['Заказ обеспечен'] = modify_col(data['Заказ обеспечен'], instr=1, space=1, comma=1, numeric=1)
     data['Пометка удаления'] = modify_col(data['Пометка удаления'], instr=1, space=1, comma=1, numeric=1)
     data['Заказ-Партия'] = data['Номер победы'] + "-" + data['Партия']
+
+    # добавляет колонки 'Закуп подтвержден', 'Возможный заказ' по данным из ПОБЕДЫ
     appr_orders = approved_orders(tuple(data['Номер победы'].unique()))
     data = merge(data, appr_orders, how='left', on='Номер победы', copy=False)
     data['Дефицит'] = data['Дефицит'].where(
@@ -61,6 +63,7 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
 
     if short_term_plan is True:  # для краткосрочного планирования сразу обрезаем по дате
         data = multiple_sort(data)  # сортировка потребности и определение
+        data = data[~data['Номенклатура'].str.contains(r'Табличка', regex=True)]  # убираем все таблички
     else:
         data = data.sort_values(by='Дата запуска')  # сортировка потребности и определение
 
@@ -225,13 +228,7 @@ def future_inputs(dictionary: DataFrame, short_term_plan=False) -> DataFrame:
     data = data.merge(dictionary, on='Номенклатура', how='left')
 
     if short_term_plan is True:
-        data = data[data['Дата'] <= NOW + timedelta(days=DAYS_AFTER)]  # только поступления в нужном периоде
-        data.to_csv(
-            f'W:\\Analytics\\Илья\\!deficit_work_files\\rests_fut_inputs {NOW.strftime("%y%m%d %H_%M_%S")}.csv',
-            sep=";",
-            encoding='ansi',
-            index=False
-        )  # запись используемых файлов, для взгляда в прошлое
+        data = DataFrame(data=None, columns=list(data.columns))  # дневной дефицит без поступлений
 
     data.to_csv(
         r".\support_data\outloads\rest_futures_inputs.csv",
