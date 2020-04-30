@@ -7,11 +7,12 @@ from common.common import (
     modify_col, replace_minus, extract_product_name
 )
 from pandas import (
-    DataFrame, read_csv, merge, NaT, read_sql_query
+    DataFrame, read_csv, merge, NaT, read_sql_query, read_excel
 )
 from datetime import datetime, timedelta
 from numpy import nan
 from pypyodbc import connect
+from os import path as os_path
 
 NOW: datetime = datetime.now()
 DAYS_AFTER: int = 4  # для расчета дневного дефицита, определеяет период от сегодня + 4 дня
@@ -307,3 +308,40 @@ def approved_orders(orders: tuple) -> DataFrame:
     data['Возможный заказ'] = data['level_of_allowing'].map(lambda x: 1 if x == 4 else 0)
     data = data.rename(columns={'number_order': 'Номер победы'})
     return data[['Номер победы', 'Закуп подтвержден', 'Возможный заказ']]
+
+
+def load_processed_deficit() -> DataFrame:
+    """Загрузка рассчитанного дефицита из файла эксель"""
+    path = r".\support_data\purchase_analysis\Итоговая_потребность.xlsm"
+    data = read_excel(
+        path,
+        sheet_name='График с поступленими',
+        header=1,
+        usecols=[0, 1]
+    )
+    data = data.\
+        dropna().\
+        rename(columns={'Дата запуска': 'Номенклатура', 'ИТОГО': 'Дефицит'})
+
+    return data
+
+
+def load_orders_to_supplier() -> DataFrame:
+    """Загрузка данных о новых заказах поставщику"""
+    path_for_date = r".\support_data\purchase_analysis\Итоговая_потребность.xlsm"
+    date = datetime.fromtimestamp(os_path.getmtime(path_for_date))
+
+    path = r"W:\Analytics\Илья\!outloads\!222.txt"
+    data = read_csv(
+        path,
+        sep='\t',
+        encoding='ansi',
+        parse_dates=['Дата']
+    )
+    data = data[data['Дата'] >= date].\
+        groupby(by=['Номенклатура'])\
+        [['Заказано', 'Доставлено']].\
+        sum()
+    data = data.reset_index()
+
+    return data
