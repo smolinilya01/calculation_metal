@@ -16,6 +16,7 @@ from os import path as os_path
 
 NOW: datetime = datetime.now()
 DAYS_AFTER: int = 4  # для расчета дневного дефицита, определеяет период от сегодня + 4 дня
+PATH_FOR_DATE = r".\support_data\purchase_analysis\Итоговая_потребность.xlsm"
 
 
 def requirements(short_term_plan: bool = False) -> DataFrame:
@@ -311,8 +312,8 @@ def approved_orders(orders: tuple) -> DataFrame:
 
 
 def load_processed_deficit() -> DataFrame:
-    """Загрузка рассчитанного дефицита из файла эксель"""
-    path = r".\support_data\purchase_analysis\Итоговая_потребность.xlsm"
+    """Загрузка рассчитанного плана закупа из файла эксель"""
+    path = PATH_FOR_DATE
     data = read_excel(
         path,
         sheet_name='График с поступленими',
@@ -328,7 +329,7 @@ def load_processed_deficit() -> DataFrame:
 
 def load_orders_to_supplier() -> DataFrame:
     """Загрузка данных о новых заказах поставщику"""
-    path_for_date = r".\support_data\purchase_analysis\Итоговая_потребность.xlsm"
+    path_for_date = PATH_FOR_DATE
     date = datetime.fromtimestamp(os_path.getmtime(path_for_date))
 
     path = r"W:\Analytics\Илья\!outloads\Анализ_заказов_поставщикам_металл (ANSITXT).txt"
@@ -352,3 +353,7 @@ def load_orders_to_supplier() -> DataFrame:
     data = data.reset_index()
 
     return data
+
+# import os
+# os.chdir(r'W:\Analytics\Илья\!repositories\calculation_metal')
+# data = load_orders_to_supplier()

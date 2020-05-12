@@ -10,7 +10,7 @@ def building_purchase_analysis(
         orders: DataFrame,
         nom_: DataFrame,
         repl_: DataFrame
-) -> None:
+) -> DataFrame:
     """Процесс списания остатков и создания файлов csv
 
     :param table: таблица потребностей из итогового отчета
@@ -21,7 +21,8 @@ def building_purchase_analysis(
     # сначала мержим и делаем тем самым поиск идентичной номенклатуры
     data = table. \
         copy(). \
-        merge(orders, on='Номенклатура', how='left')
+        merge(orders, on='Номенклатура', how='left'). \
+        fillna(0)
 
     # потом только в несмерженных данных производим поиск
     index_rests_nom = data[
@@ -48,15 +49,22 @@ def building_purchase_analysis(
         'Номенклатура', 'Дефицит', 'Заказано', 'Доставлено'
     ]]
     data = concat([data, copy_orders], axis=0)
-    data = data. \
-        fillna(0). \
+    data = data.fillna(0)
+    data['Еще_заказать'] = data['Дефицит'] - data['Заказано']
+    data['Еще_заказать'] = data['Еще_заказать'].\
+        where(data['Еще_заказать'] > 0, 0)
+    data = data.\
+        fillna(0).\
         sort_values(by='Номенклатура')
 
-    data['Еще_заказать'] = data['Дефицит'] - data['Заказано']
-    data.to_excel(
-        r".\support_data\purchase_analysis\purchase_analysis.xlsx",
-        index=False
-    )
+    data.\
+        rename(columns={'Дефицит': 'План_закупа', 'Еще_заказать': 'Остаточная_потребность'}).\
+        to_excel(
+            r".\support_data\purchase_analysis\purchase_analysis.xlsx",
+            index=False
+        )
+
+    return data
 
 
 def replacement(
@@ -88,11 +96,11 @@ def replacement(
     if len(need_replacements) == 0:
         return None
     else:
-        table.at[ind, 'Заказано'] = need_replacements['Заказано'].sum()
+        table.at[ind, 'Заказано'] += need_replacements['Заказано'].sum()
         sklad['Заказано'] = sklad['Заказано']. \
             where(~sklad['Номенклатура'].isin(need_replacements['Номенклатура']), None)
 
-        table.at[ind, 'Доставлено'] = need_replacements['Доставлено'].sum()
+        table.at[ind, 'Доставлено'] += need_replacements['Доставлено'].sum()
         sklad['Доставлено'] = sklad['Доставлено']. \
             where(~sklad['Номенклатура'].isin(need_replacements['Номенклатура']), None)
 

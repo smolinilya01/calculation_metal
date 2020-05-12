@@ -30,6 +30,12 @@ def daily_excel_reports() -> None:
         logging.info(format_exc)
 
 
+def purchase_analyze_reports() -> None:
+    """Формирование регулярного отчета по анализу закупа"""
+    report_name = r".\support_data\reports\Анализ_закупа.xlsm"
+    macro(report_name)
+
+
 def macro(path_: str) -> None:
     """Запуск макроса в excel файле.
     !!!!!!!Макрос всегда в модуле 1 и называется load_data!!!!!!!!
@@ -46,3 +52,7 @@ def macro(path_: str) -> None:
         workbook.Save()
         excel_macro.Application.Quit()
         del excel_macro
+
+# if __name__ == '__main__':
+#     report_name = r".\support_data\reports\Анализ_закупа.xlsm"
+#     macro(report_name)
