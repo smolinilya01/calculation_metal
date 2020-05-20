@@ -16,7 +16,7 @@ from os import path as os_path
 
 NOW: datetime = datetime.now()
 DAYS_AFTER: int = 4  # для расчета дневного дефицита, определеяет период от сегодня + 4 дня
-PATH_FOR_DATE = r".\support_data\purchase_analysis\Итоговая_потребность.xlsm"
+PATH_FOR_DATE = r".\support_data\purchase_analysis\ask.csv"
 
 
 def requirements(short_term_plan: bool = False) -> DataFrame:
@@ -353,7 +353,3 @@ def load_orders_to_supplier() -> DataFrame:
     data = data.reset_index()
 
     return data
-
-# import os
-# os.chdir(r'W:\Analytics\Илья\!repositories\calculation_metal')
-# data = load_orders_to_supplier()
