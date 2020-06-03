@@ -54,7 +54,8 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
     data['Дефицит'] = data['Дефицит'].where(
         (data['Заказ обеспечен'] == 0) &
         (data['Пометка удаления'] == 0) &
-        (data['Закуп подтвержден'] == 1),
+        (data['Закуп подтвержден'] == 1) &
+        (data['Документ заказа.Статус'] != "Закрыт"),
         0
     )
     data['Изделие'] = modify_col(data['Изделие'], instr=1).map(extract_product_name)
@@ -69,7 +70,9 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
     else:
         data = data.sort_values(by='Дата запуска')  # сортировка потребности и определение
 
-    data = data.reset_index().rename(columns={'index': 'Поряд_номер'})  # определение поряд номера
+    data = data.reset_index().\
+        rename(columns={'index': 'Поряд_номер',
+                        'Документ заказа.Статус': 'Статус'})  # определение поряд номера
 
     logging.info('Потребность загрузилась')
     return data
