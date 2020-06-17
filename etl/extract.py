@@ -7,7 +7,8 @@ from common.common import (
     modify_col, replace_minus, extract_product_name
 )
 from pandas import (
-    DataFrame, read_csv, merge, NaT, read_sql_query, read_excel
+    DataFrame, Series, read_csv, merge,
+    NaT, read_sql_query, read_excel
 )
 from datetime import datetime, timedelta
 from numpy import nan
@@ -47,6 +48,7 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
     data['Заказ обеспечен'] = modify_col(data['Заказ обеспечен'], instr=1, space=1, comma=1, numeric=1)
     data['Пометка удаления'] = modify_col(data['Пометка удаления'], instr=1, space=1, comma=1, numeric=1)
     data['Заказ-Партия'] = data['Номер победы'] + "-" + data['Партия']
+    data['Нельзя_заменять'] = 0  # в будущем в выгрузку добавиться колонка о запрете замены
 
     # добавляет колонки 'Закуп подтвержден', 'Возможный заказ' по данным из ПОБЕДЫ
     appr_orders = approved_orders(tuple(data['Номер победы'].unique()))
@@ -79,7 +81,8 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
 
 
 def nomenclature() -> DataFrame:
-    """Загузка таблицы со структурными данными для замен."""
+    """Загузка таблицы со структурными данными для замен.
+    А так же создание справочников по покрытию и прочности"""
     path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Справочник_металла (ANSITXT).txt"
     data = read_csv(
         path,
@@ -109,24 +112,31 @@ def nomenclature() -> DataFrame:
         'ГОСТ Сортамента', 'Марка',
         'Категория', 'Марка-категория'
     ]]
-    data['Сортамет+Марка'] = (
-            data['Сортамент'].map(str.strip) + '-' +
-            data['Марка-категория'].map(str.strip)
-    )  # Создание столбца Сортам_маркак
+    data['ГОСТ_сортамента_без_года'] = data['ГОСТ Сортамента'].map(gost_without_year)
 
     logging.info('Номенклатура загрузилась')
     return data
 
 
-def create_sortam(x) -> str:
+def create_sortam(x: Series) -> str:
     """Создание сортамента из наименования, вида и госта"""
     nom, vid, gost = str(x[0]).strip(), str(x[1]).strip(), str(x[2]).strip()
     if '' in [nom, vid, gost]:
         return ''
 
-    sortam = re.search(f'{vid}(\s*.+)\s*{gost}', nom).group(1)
+    size = re.search(f'{vid}(\s*.+)\s*{gost}', nom).group(1)
 
-    return vid + sortam.rstrip()
+    return vid + size.rstrip()
+
+
+def gost_without_year(x: str) -> str:
+    """Убирает год из госта"""
+    if x == "" or not '-' in x:
+        return x
+    else:
+        year = x.split('-')[-1]  # самое последнее значение после последнего "-"
+        gost = re.search(f'(.+)-{year}', x).group(1)
+        return gost
 
 
 def replacements() -> DataFrame:
@@ -165,7 +175,7 @@ def center_rests(dictionary: DataFrame, short_term_plan=False) -> DataFrame:
 
     if short_term_plan is True:
         data.to_csv(
-            f'W:\\Analytics\\Илья\\!deficit_work_files\\rests_center_mtz {NOW.strftime("%y%m%d %H_%M_%S")}.csv',
+            f'\\\\oemz-fs01.oemz.ru\\Works$\\Analytics\\Илья\\!deficit_work_files\\rests_center_mtz {NOW.strftime("%y%m%d %H_%M_%S")}.csv',
             sep=";",
             encoding='ansi',
             index=False
@@ -197,7 +207,7 @@ def tn_rests(dictionary: DataFrame, short_term_plan=False) -> DataFrame:
 
     if short_term_plan is True:
         data.to_csv(
-            f'W:\\Analytics\\Илья\\!deficit_work_files\\rests_tn {NOW.strftime("%y%m%d %H_%M_%S")}.csv',
+            f'\\\\oemz-fs01.oemz.ru\\Works$\\Analytics\\Илья\\!deficit_work_files\\rests_tn {NOW.strftime("%y%m%d %H_%M_%S")}.csv',
             sep=";",
             encoding='ansi',
             index=False
@@ -214,7 +224,7 @@ def future_inputs(dictionary: DataFrame, short_term_plan=False) -> DataFrame:
     :param dictionary: таблица из nomenclature() - справочник номенклатуры
     :param short_term_plan: если True, то запись остаток в папку для сохранения прошлых расчетов
     """
-    path = r"W:\Analytics\Илья\!outloads\Остатки заказов поставщикам металл (ANSITXT).txt"
+    path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Остатки заказов поставщикам металл (ANSITXT).txt"
     data = read_csv(
         path,
         sep='\t',
@@ -335,7 +345,7 @@ def load_orders_to_supplier() -> DataFrame:
     path_for_date = PATH_FOR_DATE
     date = datetime.fromtimestamp(os_path.getmtime(path_for_date))
 
-    path = r"W:\Analytics\Илья\!outloads\Анализ_заказов_поставщикам_металл (ANSITXT).txt"
+    path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Анализ_заказов_поставщикам_металл (ANSITXT).txt"
     data = read_csv(
         path,
         sep='\t',
