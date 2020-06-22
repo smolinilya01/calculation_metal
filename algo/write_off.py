@@ -1,6 +1,6 @@
 """Write off"""
 
-from pandas import (DataFrame, Series, concat)
+from pandas import (DataFrame, Series)
 
 
 def write_off(
