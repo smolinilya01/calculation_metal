@@ -165,11 +165,20 @@ def compare_with_prev_ask(table: DataFrame) -> DataFrame:
     # вычисляемые столбцы
     data['Проблема'] = None
     data['Проблема'] = (
-        'Изменение даты ' + '(' +
+        'Изменение даты на раннюю ' + '(' +
         data['Дата запуска_prev'].map(lambda x: x.strftime('%d.%m.%Y') if isinstance(x, Timestamp) else str(x)) +
         '->' + data['Дата запуска_cur'].map(lambda x: x.strftime('%d.%m.%Y')) + ')'
     ).where(
-        (data['Дата запуска_cur'] != data['Дата запуска_prev']) &
+        (data['Дата запуска_cur'] < data['Дата запуска_prev']) &
+        ~(data['Дата запуска_prev'].isna()),
+        data['Проблема']
+    )
+    data['Проблема'] = (
+        'Изменение даты на позднюю ' + '(' +
+        data['Дата запуска_prev'].map(lambda x: x.strftime('%d.%m.%Y') if isinstance(x, Timestamp) else str(x)) +
+        '->' + data['Дата запуска_cur'].map(lambda x: x.strftime('%d.%m.%Y')) + ')'
+    ).where(
+        (data['Дата запуска_cur'] > data['Дата запуска_prev']) &
         ~(data['Дата запуска_prev'].isna()),
         data['Проблема']
     )
