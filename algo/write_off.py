@@ -1,6 +1,6 @@
 """Write off"""
 
-from pandas import (DataFrame, Series)
+from pandas import (DataFrame, Series, read_csv)
 
 
 def write_off(
@@ -247,8 +247,24 @@ def search_replacements(
             'mark': dict_repl_mark,
         }
     """
+    # дополнение взаимозавен с заменами вида номенклатуры на другой вид
+    path = r'.\support_data\outloads\dict_replacement_vid.csv'
+    dict_repl_vid = read_csv(
+        path,
+        sep=';',
+        encoding='ansi'
+    )
+
     sortament = dict_nom.loc[cur_nom, 'Сортамент']
     gost_sortament = dict_nom.loc[cur_nom, 'ГОСТ_сортамента_без_года']
+    cur_vid: str = dict_nom.loc[cur_nom, 'Вид']
+    cur_dimension: str = sortament.replace(cur_vid, '')
+
+    # vid
+    if cur_vid in dict_repl_vid.columns:
+        need_sortament = dict_repl_vid[cur_vid] + cur_dimension
+    else:
+        need_sortament = Series(data=sortament)
 
     # cur_mark
     cur_mark = dict_nom.at[cur_nom, 'Марка-категория']
@@ -261,7 +277,7 @@ def search_replacements(
     sklad_ = sklad[sklad['Количество'] > 0]
     sklad_ = sklad_.fillna('')
     sklad_ = sklad_[
-        (sklad_['Сортамент'] == sortament) &
+        (sklad_['Сортамент'].isin(need_sortament)) &
         (sklad_['ГОСТ_сортамента_без_года'] == gost_sortament) &
         (sklad_['Марка-категория'].isin(repl_marks))
     ]
@@ -272,10 +288,14 @@ def search_replacements(
         order_mark = DataFrame(data=repl_marks.values, columns=['Марка-категория'])
         order_mark['order_mark'] = order_mark.index
 
+        order_vid = DataFrame(data=need_sortament.values, columns=['Вид'])
+        order_vid['order_vid'] = order_vid.index
+
         INDEX = sklad_.index
         sklad_ = sklad_.merge(order_mark, on='Марка-категория', how='left')
+        sklad_ = sklad_.merge(order_vid, on='Вид', how='left')
         sklad_.index = INDEX  # после мержа восстанавливаем индекс
-        sklad_ = sklad_.sort_values(by=['order_mark'])
+        sklad_ = sklad_.sort_values(by=['order_vid', 'order_mark'])
 
     # для построение справочника зваивозамен
     # sklad_['Текущ_номенклатура'] = cur_nom
