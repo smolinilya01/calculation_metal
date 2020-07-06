@@ -53,11 +53,17 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
     # добавляет колонки 'Закуп подтвержден', 'Возможный заказ' по данным из ПОБЕДЫ
     appr_orders = approved_orders(tuple(data['Номер победы'].unique()))
     data = merge(data, appr_orders, how='left', on='Номер победы', copy=False)
+
+    order_shipments = order_shipment()
+    data = data.merge(order_shipments, how='left', on='Номер победы')
+    data['Полная_отгрузка'] = data['Полная_отгрузка'].fillna(0)
+
     data['Дефицит'] = data['Дефицит'].where(
         (data['Заказ обеспечен'] == 0) &
         (data['Пометка удаления'] == 0) &
         (data['Закуп подтвержден'] == 1) &
-        (data['Документ заказа.Статус'] != "Закрыт"),
+        (data['Документ заказа.Статус'] != "Закрыт") &
+        (data['Полная_отгрузка'] == 0),
         0
     )
     data['Изделие'] = modify_col(data['Изделие'], instr=1).map(extract_product_name)
@@ -365,5 +371,30 @@ def load_orders_to_supplier() -> DataFrame:
         [['Заказано', 'Доставлено']].\
         sum()
     data = data.reset_index()
+
+    return data
+
+
+def order_shipment() -> DataFrame:
+    """Список отгрузок заказов
+    Если Полная_отгрузка == 1, то значит эта позиция отгрузилась и в расчете не участвует
+    """
+    path = r"W:\Analytics\Илья\!outloads\Открузки_заказов (ANSITXT).txt"
+    data = read_csv(
+        path,
+        sep='\t',
+        encoding='ansi',
+        dtype={'Номер победы': str}
+    ).rename(columns={
+        'Заказ пр-ва (Победа)': 'Номер победы',
+        'Заказ (с учетом отмен)': 'Заказано'
+    })
+    data = data[~data['Договор'].isna()]
+    data['Полная_отгрузка'] = 0
+    data['Заказано'] = modify_col(data['Заказано'], instr=1, space=1, comma=1, numeric=1)
+    data['Отгружено'] = modify_col(data['Отгружено'], instr=1, space=1, comma=1, numeric=1)
+    data['Полная_отгрузка'] = data['Полная_отгрузка'].\
+        where(~(data['Отгружено'] >= data['Заказано']), 1)
+    data = data[['Номер победы', 'Полная_отгрузка']].drop_duplicates()
 
     return data
