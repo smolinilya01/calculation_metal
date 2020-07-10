@@ -63,7 +63,8 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
         (data['Пометка удаления'] == 0) &
         (data['Закуп подтвержден'] == 1) &
         (data['Документ заказа.Статус'] != "Закрыт") &
-        (data['Полная_отгрузка'] == 0),
+        (data['Полная_отгрузка'] == 0) &
+        (data['Изделие.Вид номенклатуры'] != 'Металл под оцинковку'),
         0
     )
     data['Изделие'] = modify_col(data['Изделие'], instr=1).map(extract_product_name)
