@@ -41,7 +41,9 @@ def building_purchase_analysis() -> DataFrame:
         fut=end_fut,
         oper_=operations,
         nom_=dict_nom,
-        repl_=dict_repl
+        repl_={
+            'mark': dict_repl
+        }
     )
 
     check_calculation_right(
