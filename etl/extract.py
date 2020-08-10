@@ -208,7 +208,8 @@ def tn_rests(dictionary: DataFrame, short_term_plan=False) -> DataFrame:
     )
     data = data.rename(columns={'Конечный остаток': "Количество", 'Артикул': 'Код'})
     data = data[~data['Номенклатура'].isna()]
-    data['Количество'] = modify_col(data['Количество'], instr=1, space=1, comma=1, numeric=1)
+    data['Количество'] = data['Количество'].fillna(0)
+    data['Количество'] = modify_col(data['Количество'], instr=1, space=1, comma=1, numeric=1, minus=1)
     data['Склад'] = 'ТН'
     data['Дата'] = datetime(NOW.year, NOW.month, NOW.day)
     data = data.merge(dictionary, on='Номенклатура', how='left')
