@@ -167,12 +167,12 @@ def center_rests(dictionary: DataFrame, short_term_plan=False) -> DataFrame:
     :param dictionary: таблица из nomenclature() - справочник номенклатуры
     :param short_term_plan: если True, то запись остаток в папку для сохранения прошлых расчетов
     """
-    path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\!metal_center+metiz (ANSITXT).txt"
+    path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\!metal+metiz_center_free (ANSITXT).txt"
     data = read_csv(
         path,
         sep='\t',
         encoding='ansi'
-    ).rename(columns={'Конечный остаток': 'Количество'})
+    ).rename(columns={'Доступно': 'Количество'})
     data = data.rename(columns={'Артикул': 'Код'})
     data = data[~data['Номенклатура'].isna()]
     data['Количество'] = modify_col(data['Количество'], instr=1, space=1, comma=1, numeric=1)
@@ -200,13 +200,13 @@ def tn_rests(dictionary: DataFrame, short_term_plan=False) -> DataFrame:
     :param dictionary: таблица из nomenclature() - справочник номенклатуры
     :param short_term_plan: если True, то запись остаток в папку для сохранения прошлых расчетов
     """
-    path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\!metal_tn (ANSITXT).txt"
+    path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\!metal_tn_free (ANSITXT).txt"
     data = read_csv(
         path,
         sep='\t',
         encoding='ansi',
     )
-    data = data.rename(columns={'Конечный остаток': "Количество", 'Артикул': 'Код'})
+    data = data.rename(columns={'Доступно': "Количество", 'Артикул': 'Код'})
     data = data[~data['Номенклатура'].isna()]
     data['Количество'] = data['Количество'].fillna(0)
     data['Количество'] = modify_col(data['Количество'], instr=1, space=1, comma=1, numeric=1, minus=1)
