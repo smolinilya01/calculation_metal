@@ -36,7 +36,7 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
 
     data = data[~data['Номенклатура'].isna()]
     data = data.fillna(value=0)
-    data = data.rename(columns={'Обеспечена МП': 'Заказ обеспечен'})
+    data = data.rename(columns={'Обеспечен МП': 'Заказ обеспечен'})
     data['Заказ обеспечен'] = data['Заказ обеспечен'].replace({'Нет': 0, 'Да': 1})
     data['Пометка удаления'] = data['Пометка удаления'].replace({'Нет': 0, 'Да': 1})
     data['Номер победы'] = modify_col(data['Номер победы'], instr=1, space=1)
