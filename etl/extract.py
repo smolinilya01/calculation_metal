@@ -38,6 +38,7 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
     data = data.fillna(value=0)
     data = data.rename(columns={'Обеспечен МП': 'Заказ обеспечен'})
     data['Заказ обеспечен'] = data['Заказ обеспечен'].replace({'Нет': 0, 'Да': 1})
+    data['Обеспечена метизы'] = data['Обеспечена метизы'].replace({'Нет': 0, 'Да': 1})
     data['Пометка удаления'] = data['Пометка удаления'].replace({'Нет': 0, 'Да': 1})
     data['Номер победы'] = modify_col(data['Номер победы'], instr=1, space=1)
     data['Партия'] = data['Партия'].map(int)
@@ -46,6 +47,7 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
     data['Дефицит'] = modify_col(data['Дефицит'], instr=1, space=1, comma=1, numeric=1).map(replace_minus)
     data['Перемещено'] = modify_col(data['Перемещено'], instr=1, space=1, comma=1, numeric=1, minus=1)
     data['Заказ обеспечен'] = modify_col(data['Заказ обеспечен'], instr=1, space=1, comma=1, numeric=1)
+    data['Обеспечена метизы'] = modify_col(data['Обеспечена метизы'], instr=1, space=1, comma=1, numeric=1)
     data['Пометка удаления'] = modify_col(data['Пометка удаления'], instr=1, space=1, comma=1, numeric=1)
     data['Заказ-Партия'] = data['Номер победы'] + "-" + data['Партия']
     data['Нельзя_заменять'] = 0  # в будущем в выгрузку добавиться колонка о запрете замены
@@ -68,6 +70,16 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
         0
     )
     data['Изделие'] = modify_col(data['Изделие'], instr=1).map(extract_product_name)
+
+    # если позиция это метиз, то проверяется по столбцу 'Обеспечена метизы'
+    metiz_names = read_csv(
+        r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Справочник_только_метизов (ANSITXT).txt",
+        sep='\t',
+        encoding='ansi'
+    )
+    data['Заказ обеспечен'] = data['Заказ обеспечен'].where(
+        ~data['Номенклатура'].isin(metiz_names['Номенклатура']), data['Обеспечена метизы']
+    )
     del data['Обеспечена метизы']  # del data['Обеспечена метизы'], data['Заказчик'], data['Спецификация']
 
     tn_ord = tn_orders()
