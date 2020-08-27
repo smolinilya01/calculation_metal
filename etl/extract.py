@@ -60,6 +60,16 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
     data = data.merge(order_shipments, how='left', on='Номер победы')
     data['Полная_отгрузка'] = data['Полная_отгрузка'].fillna(0)
 
+    # если позиция это метиз, то проверяется по столбцу 'Обеспечена метизы'
+    metiz_names = read_csv(
+        r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Справочник_только_метизов (ANSITXT).txt",
+        sep='\t',
+        encoding='ansi'
+    )
+    data['Заказ обеспечен'] = data['Заказ обеспечен'].where(
+        ~data['Номенклатура'].isin(metiz_names['Номенклатура']), data['Обеспечена метизы']
+    )
+
     data['Дефицит'] = data['Дефицит'].where(
         (data['Заказ обеспечен'] == 0) &
         (data['Пометка удаления'] == 0) &
@@ -70,16 +80,6 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
         0
     )
     data['Изделие'] = modify_col(data['Изделие'], instr=1).map(extract_product_name)
-
-    # если позиция это метиз, то проверяется по столбцу 'Обеспечена метизы'
-    metiz_names = read_csv(
-        r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Справочник_только_метизов (ANSITXT).txt",
-        sep='\t',
-        encoding='ansi'
-    )
-    data['Заказ обеспечен'] = data['Заказ обеспечен'].where(
-        ~data['Номенклатура'].isin(metiz_names['Номенклатура']), data['Обеспечена метизы']
-    )
     del data['Обеспечена метизы']  # del data['Обеспечена метизы'], data['Заказчик'], data['Спецификация']
 
     tn_ord = tn_orders()
