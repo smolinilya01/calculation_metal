@@ -24,7 +24,7 @@ def main() -> None:
     dict_repl = replacements()
     start_rest_center = center_rests(dictionary=dict_nom, short_term_plan=True)
     start_rest_tn = tn_rests(dictionary=dict_nom, short_term_plan=True)
-    start_fut = future_inputs(dictionary=dict_nom, short_term_plan=True)
+    start_fut = future_inputs(dictionary=dict_nom)
     start_ask = requirements(short_term_plan=True)
 
     end_rest_center = start_rest_center.copy()
@@ -67,7 +67,7 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    # chdir(r'C:\LOG_1\calculation_metal')  # что бы планировщик заданий переключался на правильную директорию
+    chdir(r'C:\LOG_1\calculation_metal')  # что бы планировщик заданий переключался на правильную директорию
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(levelname)s - %(message)s',

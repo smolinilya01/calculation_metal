@@ -5,7 +5,7 @@ from etl.extract import NOW, long_term_sortaments
 from pandas import (
     DataFrame, pivot_table, Series, concat
 )
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 def weekly_tables(
@@ -59,7 +59,7 @@ def weekly_tables(
 
     # создание файлов для макроса экселя
     # detail_table - таблица для краткосрочного закупа
-    if sep_date is None:  # если None, то для дефицита ежедневного и далее ну нужно идти
+    if sep_date is None:  # если None, то для дефицита ежедневного и далее не нужно идти
         return None
     else:
         # подготовка detail.csv
@@ -233,7 +233,13 @@ def graph(table_: DataFrame, method: str) -> None:
     cum_column = graph_[graph_.columns[graph_.columns < NOW]].sum(axis=1)  # столбец с кумулятивными данными предыдущих дней
 
     combin_graph = graph_[need_date].copy()
-    combin_graph[need_date.iloc[0]] = cum_column + combin_graph[need_date.iloc[0]]
+    if len(combin_graph.columns) != 0:  # проблемный случай, если в промежутке от текущего дня до тек день + 2 дня нет данных, то сформировать как нулевые
+        combin_graph[need_date.iloc[0]] = cum_column + combin_graph[need_date.iloc[0]]
+    else:
+        combin_graph['first_column'] = cum_column
+        combin_graph['second_column'] = 0
+        combin_graph['third_column'] = 0
+        combin_graph.columns = [NOW, NOW + timedelta(days=1), NOW + timedelta(days=2)]
 
     # создание мультииндекса, где верхний уровень отклонение от первого дня
     columns = Series(combin_graph.columns).diff().map(extract_day).cumsum().replace({None: 0})
@@ -279,7 +285,10 @@ def make_unapproved_orders(data: DataFrame, sep_date: datetime) -> DataFrame:
         (data['Заказ обеспечен'] == 0) &
         (data['Пометка удаления'] == 0) &
         (data['Закуп подтвержден'] == 0) &
-        (data['Количество в заказе'] != 0) &
+        (data['Статус'] != "Закрыт") &
+        (data['Полная_отгрузка'] == 0) &
+        (data['Количество в заказе'] > 0) &
+        (data['Изделие.Вид номенклатуры'] != 'Металл под оцинковку') &
         (data['Дата запуска'] <= sep_date)
         ][[
             'Дата запуска', 'Заказ-Партия', 'Заказчик',

@@ -35,15 +35,19 @@ def deficit(table_: DataFrame) -> None:
     need_columns = [
         'Номер победы', 'Партия', 'Дата запуска',
         'Номенклатура', 'Количество в заказе',
-        'Заказчик', 'Изделие', 'Остаток дефицита', 'Дата начала факт'
+        'Заказчик', 'Изделие', 'Остаток дефицита', 'Дата начала факт',
+        'Остаток дефицита с поступлениями'
     ]
     table: DataFrame = table_.copy()
-    # table['Остаток дефицита'] = table['Остаток дефицита'] + table['Списание из Поступлений']
+    table['Остаток дефицита с поступлениями'] = table['Остаток дефицита'].copy()
+    table['Остаток дефицита'] = table['Остаток дефицита'] + table['Списание из Поступлений']
+
     table['Заказчик'] = table['Заказчик'].replace({0: 'Омский ЭМЗ', '0': 'Омский ЭМЗ'})
     table = table[
-        (table['Заказ обеспечен'] == 0) &
-        (table['Пометка удаления'] == 0) &
-        (table['Закуп подтвержден'] == 1)
+        ((table['Заказ обеспечен'] == 0) & (table['Пометка удаления'] == 0) &
+         (table['Закуп подтвержден'] == 1) & (table['Статус'] != "Закрыт") &
+         (table['Полная_отгрузка'] == 0) &
+         (table['Изделие.Вид номенклатуры'] != 'Металл под оцинковку'))
         ]
     table = table[need_columns]
 
@@ -78,13 +82,18 @@ def main_deficit_table(table: DataFrame) -> DataFrame:
 
     :param table: таблица с подготовленными данными output_req из deficit()
     """
+    need_columns = [
+        'Номер победы', 'Партия', 'Дата запуска',
+        'Номенклатура', 'Количество в заказе',
+        'Заказчик', 'Изделие', 'Остаток дефицита', 'Дата начала факт'
+    ]
     group_columns = [
         'Номер победы', 'Партия', 'Дата запуска',
         'Заказчик', 'Изделие', 'Дата начала факт'
     ]
     problems = compare_with_prev_ask(table)  # готовая таблица с индикатором проблем (переносы, отклонение потреб)
 
-    detail_table = table.copy()
+    detail_table = table[need_columns].copy()
     detail_table = detail_table.groupby(by=group_columns).sum().reset_index()
     detail_table['Проблема'] = None
     detail_table['Обеспеченность'] = 1 - (detail_table['Остаток дефицита'] / detail_table['Количество в заказе'])
@@ -133,9 +142,55 @@ def main_deficit_table(table: DataFrame) -> DataFrame:
         'Заказчик': 'Заказчик/Сортамент',
         'Номер победы': '№ заказа'
     })
-    first_table['Дата закрытия дефицита'] = None
+    first_table['Дата закрытия дефицита с учетом поступлений'] = None
     first_table['Примечание МТО'] = None
     first_table['Примечание ПО'] = None
+    # first_table['Дата запуска ФАКТ'] = first_table['Дата запуска ФАКТ'].replace({'0': None})
+
+
+    # добавление колонки с датами закрытия дефицита из поступлений
+    # если в строчке номенклатура, то дата закрытия дефицита номенклатуры из поступлений
+    # если в строчке заказ, то дата закрытия заказа
+    name_oper = r'.\support_data\output_tables\oper_{0}.csv'.format(NOW.strftime('%Y%m%d'))
+    data_oper = read_csv(name_oper, sep=";", encoding='ansi', parse_dates=['Дата учета'])
+    data_oper.to_csv(
+        f'W:\\Analytics\\Илья\\!deficit_work_files\\oper {NOW.strftime("%y%m%d %H_%M_%S")}.csv',
+        sep=";",
+        encoding='ansi',
+        index=False
+    )  # запись используемых файлов, для взгляда в прошлое
+
+    done_orders = table.copy()
+    done_orders['Заказ-Партия'] = done_orders['Номер победы'] + '-' + done_orders['Партия'].map(str)
+    done_orders = done_orders.groupby(by='Заказ-Партия')['Остаток дефицита с поступлениями'].sum().reset_index()
+    done_orders = done_orders[done_orders['Остаток дефицита с поступлениями'] == 0]
+
+    data_for_orders = data_oper[
+        (data_oper['Склад'] == 'Поступления') &
+        (data_oper['Заказ-Партия'].isin(done_orders['Заказ-Партия']))
+    ][['Заказ-Партия', 'Дата учета']]
+    data_for_orders = data_for_orders.groupby(by='Заказ-Партия')['Дата учета'].max().reset_index()
+
+    data_for_nomen = data_oper[
+        (data_oper['Склад'] == 'Поступления') &
+        (data_oper['Потребность кон'] == 0)
+    ][['Заказ-Партия', 'Номенклатура потребности', 'Дата учета']]
+    data_for_nomen = data_for_nomen.rename(columns={'Номенклатура потребности': 'Заказчик/Сортамент'})
+
+    first_table['Партия'] = first_table['Партия'].fillna('nan')
+    first_table['Заказ-Партия'] = first_table['№ заказа'] + '-' + first_table['Партия'].map(lambda x: str(int(x)) if (x is not 'nan') else None)
+    first_table['Партия'] = first_table['Партия'].replace({'nan': None})
+    first_table['Заказ-Партия'] = first_table['Заказ-Партия'].ffill()
+    first_table = first_table\
+        .merge(data_for_orders, on='Заказ-Партия', how='left')\
+        .rename(columns={'Дата учета': 'Дата учета заказ'})
+    first_table = first_table \
+        .merge(data_for_nomen, on=['Заказ-Партия', 'Заказчик/Сортамент'], how='left') \
+        .rename(columns={'Дата учета': 'Дата учета номен'})
+    first_table['Дата закрытия дефицита с учетом поступлений'] = first_table['Дата учета номен']\
+        .where(first_table['Дата запуска ПЛАН'].isna(), first_table['Дата учета заказ'])
+    del first_table['Дата учета заказ'], first_table['Дата учета номен'], first_table['Заказ-Партия']
+
     return first_table
 
 
@@ -248,11 +303,17 @@ def provided_table(table: DataFrame) -> DataFrame:
 
     :param table: таблица с подготовленными данными output_req из deficit()
     """
+    need_columns = [
+        'Номер победы', 'Партия', 'Дата запуска',
+        'Номенклатура', 'Количество в заказе',
+        'Заказчик', 'Изделие', 'Остаток дефицита', 'Дата начала факт'
+    ]
+    table_ = table[need_columns].copy()
     group_columns = [
         'Номер победы', 'Партия', 'Дата запуска',
         'Заказчик', 'Изделие'
     ]
-    prov_table = table.copy()
+    prov_table = table_.copy()
     prov_table = prov_table.groupby(by=group_columns).sum().reset_index()
     prov_table['Обеспеченность'] = 1 - (prov_table['Остаток дефицита'] / prov_table['Количество в заказе'])
     prov_table['Дата запуска ФАКТ'] = None  # потом заменится на существующую колонку

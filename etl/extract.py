@@ -36,8 +36,9 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
 
     data = data[~data['Номенклатура'].isna()]
     data = data.fillna(value=0)
-    data = data.rename(columns={'Обеспечена МП': 'Заказ обеспечен'})
+    data = data.rename(columns={'Обеспечен МП': 'Заказ обеспечен'})
     data['Заказ обеспечен'] = data['Заказ обеспечен'].replace({'Нет': 0, 'Да': 1})
+    data['Обеспечена метизы'] = data['Обеспечена метизы'].replace({'Нет': 0, 'Да': 1})
     data['Пометка удаления'] = data['Пометка удаления'].replace({'Нет': 0, 'Да': 1})
     data['Номер победы'] = modify_col(data['Номер победы'], instr=1, space=1)
     data['Партия'] = data['Партия'].map(int)
@@ -46,6 +47,7 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
     data['Дефицит'] = modify_col(data['Дефицит'], instr=1, space=1, comma=1, numeric=1).map(replace_minus)
     data['Перемещено'] = modify_col(data['Перемещено'], instr=1, space=1, comma=1, numeric=1, minus=1)
     data['Заказ обеспечен'] = modify_col(data['Заказ обеспечен'], instr=1, space=1, comma=1, numeric=1)
+    data['Обеспечена метизы'] = modify_col(data['Обеспечена метизы'], instr=1, space=1, comma=1, numeric=1)
     data['Пометка удаления'] = modify_col(data['Пометка удаления'], instr=1, space=1, comma=1, numeric=1)
     data['Заказ-Партия'] = data['Номер победы'] + "-" + data['Партия']
     data['Нельзя_заменять'] = 0  # в будущем в выгрузку добавиться колонка о запрете замены
@@ -58,6 +60,16 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
     data = data.merge(order_shipments, how='left', on='Номер победы')
     data['Полная_отгрузка'] = data['Полная_отгрузка'].fillna(0)
 
+    # если позиция это метиз, то проверяется по столбцу 'Обеспечена метизы'
+    metiz_names = read_csv(
+        r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\Справочник_только_метизов (ANSITXT).txt",
+        sep='\t',
+        encoding='ansi'
+    )
+    data['Заказ обеспечен'] = data['Заказ обеспечен'].where(
+        ~data['Номенклатура'].isin(metiz_names['Номенклатура']), data['Обеспечена метизы']
+    )
+
     data['Дефицит'] = data['Дефицит'].where(
         (data['Заказ обеспечен'] == 0) &
         (data['Пометка удаления'] == 0) &
@@ -67,6 +79,7 @@ def requirements(short_term_plan: bool = False) -> DataFrame:
         (data['Изделие.Вид номенклатуры'] != 'Металл под оцинковку'),
         0
     )
+
     data['Изделие'] = modify_col(data['Изделие'], instr=1).map(extract_product_name)
     del data['Обеспечена метизы']  # del data['Обеспечена метизы'], data['Заказчик'], data['Спецификация']
 
@@ -167,12 +180,12 @@ def center_rests(dictionary: DataFrame, short_term_plan=False) -> DataFrame:
     :param dictionary: таблица из nomenclature() - справочник номенклатуры
     :param short_term_plan: если True, то запись остаток в папку для сохранения прошлых расчетов
     """
-    path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\!metal_center+metiz (ANSITXT).txt"
+    path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\!metal+metiz_center_free (ANSITXT).txt"
     data = read_csv(
         path,
         sep='\t',
         encoding='ansi'
-    ).rename(columns={'Конечный остаток': 'Количество'})
+    ).rename(columns={'Доступно': 'Количество'})
     data = data.rename(columns={'Артикул': 'Код'})
     data = data[~data['Номенклатура'].isna()]
     data['Количество'] = modify_col(data['Количество'], instr=1, space=1, comma=1, numeric=1)
@@ -200,15 +213,16 @@ def tn_rests(dictionary: DataFrame, short_term_plan=False) -> DataFrame:
     :param dictionary: таблица из nomenclature() - справочник номенклатуры
     :param short_term_plan: если True, то запись остаток в папку для сохранения прошлых расчетов
     """
-    path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\!metal_tn (ANSITXT).txt"
+    path = r"\\oemz-fs01.oemz.ru\Works$\Analytics\Илья\!outloads\!metal_tn_free (ANSITXT).txt"
     data = read_csv(
         path,
         sep='\t',
         encoding='ansi',
     )
-    data = data.rename(columns={'Конечный остаток': "Количество", 'Артикул': 'Код'})
+    data = data.rename(columns={'Доступно': "Количество", 'Артикул': 'Код'})
     data = data[~data['Номенклатура'].isna()]
-    data['Количество'] = modify_col(data['Количество'], instr=1, space=1, comma=1, numeric=1)
+    data['Количество'] = data['Количество'].fillna(0)
+    data['Количество'] = modify_col(data['Количество'], instr=1, space=1, comma=1, numeric=1, minus=1)
     data['Склад'] = 'ТН'
     data['Дата'] = datetime(NOW.year, NOW.month, NOW.day)
     data = data.merge(dictionary, on='Номенклатура', how='left')
@@ -313,8 +327,11 @@ def approved_orders(orders: tuple) -> DataFrame:
 
     :param orders: список уникальных заказов
     """
+    POSSIBLE_LEVEL = 3
+    EXCEPT_LEVEL = 4
     with open(r'support_data/outloads/query_approved_orders.sql') as file:
         query = file.read().format(orders)
+
     connection = connect(
         "Driver={SQL Server};"
         "Server=OEMZ-POBEDA;"
@@ -322,13 +339,14 @@ def approved_orders(orders: tuple) -> DataFrame:
         "uid=1C_Exchange;pwd=1"
     )
     data = read_sql_query(query, connection)
-    data['Закуп подтвержден'] = data['level_of_allowing'].map(lambda x: 1 if x >= 5 else 0)
+    data['Закуп подтвержден'] = data['level_of_allowing'].map(lambda x: 1 if x >= EXCEPT_LEVEL else 0)
     data['Закуп подтвержден'] = data['Закуп подтвержден'].where(
         data['number_order'].map(lambda x: False if x[1] == '0' else True),
         1
     )
-    data['Возможный заказ'] = data['level_of_allowing'].map(lambda x: 1 if x == 4 else 0)
+    data['Возможный заказ'] = data['level_of_allowing'].map(lambda x: 1 if x == POSSIBLE_LEVEL else 0)
     data = data.rename(columns={'number_order': 'Номер победы'})
+
     return data[['Номер победы', 'Закуп подтвержден', 'Возможный заказ']]
 
 
